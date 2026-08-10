@@ -1,0 +1,15 @@
+{
+  "name": "@vibecore/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "vibe": "./dist/index.js"
+  },
+  "dependencies": {
+    "@vibecore/config": "workspace:*",
+    "@vibecore/contracts": "workspace:*",
+    "@vibecore/diagnostics": "workspace:*",
+    "commander": "^14.0.0"
+  }
+}

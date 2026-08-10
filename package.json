@@ -1,0 +1,23 @@
+{
+  "name": "vibecore",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local-first application orchestration for AI-assisted developers",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check": "pnpm typecheck && pnpm test",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "vibe": "pnpm build && node apps/cli/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

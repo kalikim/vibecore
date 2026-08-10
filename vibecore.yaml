@@ -1,0 +1,28 @@
+$schema: ./schemas/vibecore.schema.json
+apiVersion: vibecore.dev/v1alpha1
+kind: Application
+
+metadata:
+  name: vibecore
+  description: Vibecore CLI and orchestration packages
+
+workspace:
+  packageManager: pnpm
+
+applications:
+  cli:
+    type: api
+    framework: node
+    path: apps/cli
+    commands:
+      build: pnpm build
+      test: pnpm test
+
+environments:
+  local:
+    runtime: local-process
+
+policies:
+  requirePlan: true
+  requireProductionApproval: true
+  requireBackupForDestructiveMigration: true
