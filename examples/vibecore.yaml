@@ -1,0 +1,70 @@
+$schema: ../schemas/vibecore.schema.json
+apiVersion: vibecore.dev/v1alpha1
+kind: Application
+
+metadata:
+  name: biashara-hub
+  description: Reference web, API, and Expo application
+
+workspace:
+  packageManager: pnpm
+
+applications:
+  web:
+    type: web
+    framework: next
+    path: apps/web
+    dependsOn: [api]
+    health:
+      path: /api/health
+
+  api:
+    type: api
+    framework: hono
+    path: apps/api
+    dependsOn: [database]
+    health:
+      path: /health
+
+  mobile:
+    type: mobile
+    framework: expo
+    path: apps/mobile
+    dependsOn: [api]
+
+resources:
+  database:
+    type: sql
+    provider: postgres
+    config:
+      orm: prisma
+
+variables:
+  DATABASE_URL:
+    required: true
+    secret: true
+    applications: [api]
+  EXPO_PUBLIC_API_URL:
+    required: true
+    applications: [mobile]
+
+environments:
+  local:
+    runtime: docker-compose
+    variableSources:
+      default: env-file
+  preview:
+    runtime: vercel
+    variableSources:
+      default: github-environment
+  production:
+    runtime: self-hosted
+    production: true
+    variableSources:
+      default: github-environment
+
+policies:
+  requirePlan: true
+  requireProductionApproval: true
+  requireBackupForDestructiveMigration: true
+

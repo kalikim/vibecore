@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibecore.dev/schemas/v1alpha1/vibecore.schema.json",
+  "title": "Vibecore Application",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "metadata", "applications", "environments"],
+  "properties": {
+    "$schema": { "type": "string", "format": "uri-reference" },
+    "apiVersion": { "const": "vibecore.dev/v1alpha1" },
+    "kind": { "const": "Application" },
+    "metadata": { "$ref": "#/$defs/metadata" },
+    "workspace": { "$ref": "#/$defs/workspace" },
+    "applications": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/application" }
+    },
+    "resources": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": { "$ref": "#/$defs/resource" }
+    },
+    "variables": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": { "$ref": "#/$defs/variable" }
+    },
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/environment" }
+    },
+    "policies": { "$ref": "#/$defs/policies" }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/identifier" },
+        "description": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "packageManager": { "enum": ["pnpm", "npm", "yarn", "bun"] },
+        "root": { "type": "string", "default": "." }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "framework", "path"],
+      "properties": {
+        "type": { "enum": ["web", "api", "mobile", "worker"] },
+        "framework": { "$ref": "#/$defs/identifier" },
+        "path": { "type": "string", "minLength": 1 },
+        "dependsOn": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dev": { "type": "string" },
+            "build": { "type": "string" },
+            "test": { "type": "string" },
+            "start": { "type": "string" }
+          }
+        },
+        "health": { "$ref": "#/$defs/health" },
+        "config": { "type": "object" }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "provider"],
+      "properties": {
+        "type": { "$ref": "#/$defs/identifier" },
+        "provider": { "$ref": "#/$defs/identifier" },
+        "config": { "type": "object" }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "secret": { "type": "boolean", "default": false },
+        "description": { "type": "string" },
+        "applications": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime"],
+      "properties": {
+        "runtime": { "$ref": "#/$defs/identifier" },
+        "production": { "type": "boolean", "default": false },
+        "overrides": { "type": "object" },
+        "variableSources": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/identifier" }
+        }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 300 }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requirePlan": { "type": "boolean", "default": true },
+        "requireProductionApproval": { "type": "boolean", "default": true },
+        "requireBackupForDestructiveMigration": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}
+
