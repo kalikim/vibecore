@@ -9,6 +9,7 @@ import { createManifestProposal, listLanguageAdapters, scanRepository } from "@v
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
+import { applyGitHubSetupPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
@@ -101,7 +102,7 @@ program
   .command("doctor")
   .description("Run read-only project diagnostics")
   .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
-  .option("-e, --environment <name>", "environment to validate", "local")
+  .option("-e, --environment <name>", "environment to validate", "dev")
   .option("--json", "print machine-readable JSON")
   .action(async (options: { manifest: string; environment: string; json?: boolean }) => {
     const manifestPath = resolve(process.cwd(), options.manifest);
@@ -225,7 +226,7 @@ program
   .command("dev")
   .description("Start and supervise declared local application processes")
   .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
-  .option("-e, --environment <name>", "environment to run", "local")
+  .option("-e, --environment <name>", "environment to run", "dev")
   .option("--keep-resources", "leave project-scoped local resources running after applications stop")
   .action(async (options: { manifest: string; environment: string; keepResources?: boolean }) => {
     const manifestPath = resolve(process.cwd(), options.manifest);
@@ -268,6 +269,33 @@ program
         component: "runtime",
         message,
       }], false);
+      process.exitCode = 1;
+    }
+  });
+
+const github = program.command("github").description("Plan secure GitHub repository automation");
+
+github.command("setup")
+  .description("Preview or create least-privilege GitHub Actions workflows")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--write", "write generated files after exact digest approval")
+  .option("--approve <digest>", "approve the exact generated plan digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { manifest: string; write?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createGitHubSetupPlan(manifest);
+      if (!options.write) {
+        if (options.json) printJson(plan);
+        else { for (const file of plan.files) console.log(`--- ${file.path}\n${file.content}`); console.log(`Plan digest: ${plan.digest}`); for (const warning of plan.warnings) console.log(`! ${warning}`); }
+        return;
+      }
+      if (!options.approve) { if (options.json) printJson(plan); else console.log(`Review the plan, then apply it with:\n  vibe github setup --write --approve ${plan.digest}`); process.exitCode = 2; return; }
+      const files = await applyGitHubSetupPlan(process.cwd(), plan, options.approve);
+      if (options.json) printJson({ plan, files }); else for (const file of files) console.log(`✓ Created ${file}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{ code: "github.setup_failed", severity: "error", component: "github", message }], options.json ?? false);
       process.exitCode = 1;
     }
   });

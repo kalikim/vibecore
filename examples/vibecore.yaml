@@ -49,16 +49,16 @@ variables:
     applications: [mobile]
 
 environments:
-  local:
+  dev:
     runtime: docker-compose
     variableSources:
       default: env-file
-  preview:
-    runtime: vercel
+  staging:
+    runtime: github-actions
     variableSources:
       default: github-environment
   production:
-    runtime: self-hosted
+    runtime: github-actions
     production: true
     variableSources:
       default: github-environment
@@ -67,4 +67,3 @@ policies:
   requirePlan: true
   requireProductionApproval: true
   requireBackupForDestructiveMigration: true
-

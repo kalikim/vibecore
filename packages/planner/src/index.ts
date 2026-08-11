@@ -34,7 +34,7 @@ export function createAdoptionPlan(
   const semanticPlan = {
     apiVersion: "vibecore.dev/plan/v1alpha1" as const,
     repositoryFingerprint: scan.fingerprint,
-    environment: "local",
+    environment: "dev",
     actions: [action],
   };
   const digest = digestValue(semanticPlan);

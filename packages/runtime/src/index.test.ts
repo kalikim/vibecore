@@ -41,7 +41,7 @@ describe("development sessions", () => {
           health: { path: "/health", timeoutSeconds: 5 },
         },
       },
-      environments: { local: { runtime: "local-process" } },
+      environments: { dev: { runtime: "local-process" } },
     };
     const logs: string[] = [];
     const session = await startDevSession(manifest, repositoryRoot, {

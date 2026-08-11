@@ -8,7 +8,7 @@ import { resolveEnvironment } from "@vibecore/environment";
 export async function diagnoseProject(
   manifest: VibecoreManifest,
   repositoryRoot: string,
-  environmentName = "local",
+  environmentName = "dev",
 ): Promise<Diagnostic[]> {
   const diagnostics: Diagnostic[] = [];
   const scan = await scanRepository(repositoryRoot);

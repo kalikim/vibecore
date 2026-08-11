@@ -14,6 +14,7 @@
     "@vibecore/diagnostics": "workspace:*",
     "@vibecore/discovery": "workspace:*",
     "@vibecore/executor": "workspace:*",
+    "@vibecore/github": "workspace:*",
     "@vibecore/planner": "workspace:*",
     "@vibecore/runtime": "workspace:*",
     "@vibecore/state": "workspace:*",

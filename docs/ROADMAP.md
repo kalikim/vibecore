@@ -73,6 +73,11 @@ Exit gate:
 
 ## Milestone 3 — Repository automation and previews
 
+Status: Started with deterministic GitHub Actions and Dependabot generation,
+least-privilege permissions, exact-digest approval, and standardized `dev`, `staging`,
+and `production` environment gates. Remote GitHub environment creation and preview
+deployment adapters remain pending.
+
 Deliverables:
 
 - Git setup adapter;

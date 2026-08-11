@@ -117,7 +117,7 @@ export async function startDevSession(
   options: DevSessionOptions = {},
 ): Promise<DevSession> {
   const root = resolve(repositoryRoot);
-  const environmentName = options.environmentName ?? "local";
+  const environmentName = options.environmentName ?? "dev";
   const environment = await resolveEnvironment(manifest, root, environmentName);
   const environmentErrors = environment.diagnostics.filter(({ severity }) => severity === "error");
   if (environmentErrors.length > 0) {

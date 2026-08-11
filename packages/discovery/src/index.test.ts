@@ -55,7 +55,9 @@ describe("scanRepository", () => {
       "hono",
       "next",
     ]);
-    expect(proposal.environments.local?.runtime).toBe("docker-compose");
+    expect(proposal.environments.dev?.runtime).toBe("docker-compose");
+    expect(proposal.environments.staging?.runtime).toBe("github-actions");
+    expect(proposal.environments.production?.production).toBe(true);
     expect(proposal.applications.web?.commands?.build).toBe("pnpm build");
     expect(proposal.policies?.requirePlan).toBe(true);
   });

@@ -167,11 +167,13 @@ export function createManifestProposal(scan: RepositoryScan): VibecoreManifest {
     applications,
     ...(Object.keys(resources).length > 0 ? { resources } : {}),
     environments: {
-      local: {
+      dev: {
         runtime: scan.resources.some((resource) => resource.provider === "docker-compose")
           ? "docker-compose"
           : "local-process",
       },
+      staging: { runtime: "github-actions", variableSources: { default: "github-environment" } },
+      production: { runtime: "github-actions", production: true, variableSources: { default: "github-environment" } },
     },
     policies: {
       requirePlan: true,

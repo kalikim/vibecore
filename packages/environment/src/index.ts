@@ -14,7 +14,7 @@ const publicPrefixes = ["NEXT_PUBLIC_", "NUXT_PUBLIC_", "VITE_", "EXPO_PUBLIC_"]
 export async function resolveEnvironment(
   manifest: VibecoreManifest,
   repositoryRoot: string,
-  environmentName = "local",
+  environmentName = "dev",
   processEnvironment: NodeJS.ProcessEnv = process.env,
 ): Promise<EnvironmentResolution> {
   const diagnostics: Diagnostic[] = [];
@@ -36,7 +36,7 @@ export async function resolveEnvironment(
   const values: Record<string, string> = {};
   const sources: string[] = [];
   const usesEnvFiles = Object.values(environment.variableSources ?? {}).includes("env-file")
-    || environmentName === "local";
+    || environmentName === "dev" || environmentName === "local";
   if (usesEnvFiles) {
     const files = [
       ".env",

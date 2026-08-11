@@ -179,7 +179,8 @@ variables:
   DATABASE_URL:
     secret: true
     sources:
-      local: env-file
+      dev: env-file
+      staging: github-environment
       production: github-environment
 ```
 
