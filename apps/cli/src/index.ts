@@ -20,13 +20,14 @@ program
   .command("doctor")
   .description("Run read-only project diagnostics")
   .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("-e, --environment <name>", "environment to validate", "local")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { manifest: string; json?: boolean }) => {
+  .action(async (options: { manifest: string; environment: string; json?: boolean }) => {
     const manifestPath = resolve(process.cwd(), options.manifest);
 
     try {
       const manifest = await loadManifest(manifestPath);
-      const diagnostics = await diagnoseProject(manifest, process.cwd());
+      const diagnostics = await diagnoseProject(manifest, process.cwd(), options.environment);
       printDiagnostics(diagnostics, options.json ?? false);
       process.exitCode = hasDiagnosticErrors(diagnostics) ? 1 : 0;
     } catch (error) {
@@ -143,11 +144,15 @@ program
   .command("dev")
   .description("Start and supervise declared local application processes")
   .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
-  .action(async (options: { manifest: string }) => {
+  .option("-e, --environment <name>", "environment to run", "local")
+  .option("--keep-resources", "leave project-scoped local resources running after applications stop")
+  .action(async (options: { manifest: string; environment: string; keepResources?: boolean }) => {
     const manifestPath = resolve(process.cwd(), options.manifest);
     try {
       const manifest = await loadManifest(manifestPath);
       const session = await startDevSession(manifest, process.cwd(), {
+        environmentName: options.environment,
+        keepResources: options.keepResources ?? false,
         onLog: ({ application, stream, message }) => {
           const marker = stream === "stderr" ? "!" : stream === "system" ? "•" : "│";
           console.log(`${marker} ${application.padEnd(12)} ${message}`);
@@ -156,6 +161,9 @@ program
       console.log(`✓ Development session ${session.record.id} is running`);
       for (const process of session.record.processes) {
         console.log(`  ${process.application.padEnd(12)} http://127.0.0.1:${process.port}`);
+      }
+      for (const resource of session.record.resources) {
+        console.log(`  ${resource.name.padEnd(12)} ${resource.provider} (${resource.projectName})`);
       }
 
       let stopping = false;

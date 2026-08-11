@@ -35,6 +35,7 @@ pnpm install
 pnpm vibe adopt
 pnpm vibe doctor
 pnpm vibe doctor --json
+pnpm vibe doctor --environment local
 pnpm vibe history
 ```
 
@@ -66,3 +67,9 @@ pnpm vibe dev
 Commands are executed directly without a shell. Vibecore assigns stable local ports,
 waits for configured health checks, prefixes application logs, and stops only the
 processes created by the current session.
+
+When an environment uses `docker-compose`, Vibecore starts its Compose project with
+a repository-specific project name and waits for resource readiness before starting
+applications. Shutdown removes only that Compose project and preserves named volumes.
+Required environment variables are validated first, and declared secret values are
+redacted from application and Docker output.

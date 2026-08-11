@@ -73,11 +73,20 @@ importers:
       '@vibecore/discovery':
         specifier: workspace:*
         version: link:../discovery
+      '@vibecore/environment':
+        specifier: workspace:*
+        version: link:../environment
       '@vibecore/project-graph':
         specifier: workspace:*
         version: link:../project-graph
 
   packages/discovery:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/environment:
     dependencies:
       '@vibecore/contracts':
         specifier: workspace:*
@@ -124,6 +133,9 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@vibecore/environment':
+        specifier: workspace:*
+        version: link:../environment
       '@vibecore/project-graph':
         specifier: workspace:*
         version: link:../project-graph

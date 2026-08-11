@@ -9,6 +9,7 @@
     { "path": "./packages/policy" },
     { "path": "./packages/state" },
     { "path": "./packages/runtime" },
+    { "path": "./packages/environment" },
     { "path": "./packages/executor" },
     { "path": "./packages/diagnostics" },
     { "path": "./apps/cli" }

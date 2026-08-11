@@ -8,6 +8,7 @@
   "references": [
     { "path": "../contracts" },
     { "path": "../discovery" },
+    { "path": "../environment" },
     { "path": "../project-graph" }
   ]
 }

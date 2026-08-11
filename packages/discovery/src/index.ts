@@ -67,7 +67,7 @@ export async function scanRepository(repositoryRoot: string): Promise<Repository
   const packageFiles = await findPackageFiles(root);
   const packageDocuments = await readPackages(packageFiles, diagnostics);
   const packageManager = await detectPackageManager(root, packageDocuments, diagnostics);
-  const applications = detectApplications(root, packageDocuments);
+  const applications = detectApplications(root, packageDocuments, packageManager?.name);
   const resources = await detectResources(root, packageDocuments);
   const fingerprint = await fingerprintInputs(root, packageFiles);
 
@@ -128,6 +128,7 @@ export function createManifestProposal(scan: RepositoryScan): VibecoreManifest {
       type: application.type,
       framework: application.framework,
       path: application.path,
+      ...(application.commands ? { commands: application.commands } : {}),
     };
   }
 
@@ -254,6 +255,7 @@ async function detectPackageManager(
 function detectApplications(
   root: string,
   packages: Array<{ file: string; document: PackageDocument }>,
+  packageManager: PackageManager | undefined,
 ): DetectedApplication[] {
   const applications: DetectedApplication[] = [];
 
@@ -268,6 +270,7 @@ function detectApplications(
     const packageName = document.name?.replace(/^@[^/]+\//, "");
     const fallbackName = applicationPath === "." ? basename(root) : basename(packageDirectory);
 
+    const commands = detectedCommands(document.scripts, packageManager);
     applications.push({
       name: sanitizeIdentifier(packageName || fallbackName),
       type: signature?.type ?? "worker",
@@ -278,10 +281,25 @@ function detectApplications(
         source: toProjectPath(root, file),
         detail: signature ? `dependency ${signature.dependency}` : "package binary entry",
       }],
+      ...(commands ? { commands } : {}),
     });
   }
 
   return applications;
+}
+
+function detectedCommands(
+  scripts: Record<string, string> | undefined,
+  packageManager: PackageManager | undefined,
+): DetectedApplication["commands"] | undefined {
+  if (!scripts) return undefined;
+  const manager = packageManager ?? "npm";
+  const commandFor = (name: string): string => manager === "npm" ? `npm run ${name}` : `${manager} ${name}`;
+  const commands: NonNullable<DetectedApplication["commands"]> = {};
+  for (const name of ["dev", "build", "test", "start"] as const) {
+    if (scripts[name]) commands[name] = commandFor(name);
+  }
+  return Object.keys(commands).length > 0 ? commands : undefined;
 }
 
 async function detectResources(

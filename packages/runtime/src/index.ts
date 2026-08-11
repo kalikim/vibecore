@@ -7,10 +7,16 @@ import { setTimeout as delay } from "node:timers/promises";
 import type {
   DevProcessRecord,
   DevProcessStatus,
+  DevResourceRecord,
   DevSessionRecord,
   VibecoreManifest,
 } from "@vibecore/contracts";
 import { buildProjectGraph, topologicalApplications } from "@vibecore/project-graph";
+import { resolveEnvironment, valuesForApplication } from "@vibecore/environment";
+import { startComposeSession, type CommandRunner, type ComposeSession } from "./compose.js";
+
+export { startComposeSession, runCommand } from "./compose.js";
+export type { CommandRunner, CommandResult, ComposeSession } from "./compose.js";
 
 export interface CommandSpec {
   executable: string;
@@ -33,6 +39,10 @@ export interface DevSessionOptions {
   onLog?: (event: DevLogEvent) => void;
   healthTimeoutMs?: number;
   stopTimeoutMs?: number;
+  composeTimeoutSeconds?: number;
+  environmentName?: string;
+  keepResources?: boolean;
+  commandRunner?: CommandRunner;
 }
 
 interface ManagedProcess {
@@ -107,6 +117,12 @@ export async function startDevSession(
   options: DevSessionOptions = {},
 ): Promise<DevSession> {
   const root = resolve(repositoryRoot);
+  const environmentName = options.environmentName ?? "local";
+  const environment = await resolveEnvironment(manifest, root, environmentName);
+  const environmentErrors = environment.diagnostics.filter(({ severity }) => severity === "error");
+  if (environmentErrors.length > 0) {
+    throw new Error(environmentErrors.map(({ message }) => message).join("; "));
+  }
   const graph = buildProjectGraph(manifest);
   const graphErrors = graph.diagnostics.filter(({ severity }) => severity === "error");
   if (graphErrors.length > 0) throw new Error(graphErrors.map(({ message }) => message).join("; "));
@@ -125,6 +141,7 @@ export async function startDevSession(
     createdAt: now,
     updatedAt: now,
     status: "starting",
+    resources: [],
     processes: [],
   };
   const sessionWriter = new SessionWriter(root, record);
@@ -132,13 +149,44 @@ export async function startDevSession(
   const reservedPorts = new Set<number>();
   let stopping = false;
   let stopPromise: Promise<void> | undefined;
+  let compose: ComposeSession | undefined;
 
+  const secretValues = Object.entries(manifest.variables ?? {})
+    .filter(([, variable]) => variable.secret)
+    .map(([name]) => environment.values[name])
+    .filter((value): value is string => Boolean(value));
   const emit = (application: string, stream: DevLogEvent["stream"], message: string) => {
-    options.onLog?.({ application, stream, message });
+    options.onLog?.({ application, stream, message: redactMessage(message, secretValues) });
   };
 
   try {
     await sessionWriter.write();
+    const composeResourceName = Object.entries(manifest.resources ?? {})
+      .find(([, resource]) => resource.provider === "docker-compose")?.[0]
+      ?? "local-services";
+    compose = await startComposeSession(
+      manifest,
+      root,
+      { ...process.env, ...environment.values },
+      {
+        ...(options.commandRunner ? { runner: options.commandRunner } : {}),
+        timeoutSeconds: options.composeTimeoutSeconds ?? 60,
+        onOutput: (stream, message) => emit(composeResourceName, stream, message),
+        redactValues: secretValues,
+      },
+    );
+    if (compose) {
+      const resourceRecord: DevResourceRecord = {
+        name: composeResourceName,
+        provider: "docker-compose",
+        projectName: compose.projectName,
+        status: "ready",
+      };
+      record.resources.push(resourceRecord);
+      await sessionWriter.write();
+      emit(composeResourceName, "system", `resources ready under project ${compose.projectName}`);
+    }
+
     for (const applicationName of order) {
       const application = manifest.applications[applicationName];
       if (!application) continue;
@@ -151,7 +199,13 @@ export async function startDevSession(
       reservedPorts.add(port);
       const child = spawn(command.executable, command.args, {
         cwd: resolve(root, application.path),
-        env: { ...process.env, PORT: String(port), VIBE_PORT: String(port) },
+        env: {
+          ...process.env,
+          ...valuesForApplication(manifest, applicationName, environment.values),
+          PORT: String(port),
+          VIBE_PORT: String(port),
+          VIBE_ENVIRONMENT: environmentName,
+        },
         shell: false,
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -196,6 +250,9 @@ export async function startDevSession(
     record.status = "failed";
     await sessionWriter.write();
     await stopManagedProcesses(managed, sessionWriter, options.stopTimeoutMs ?? 3_000);
+    if (compose && !options.keepResources) {
+      await stopCompose(compose, record.resources[0], sessionWriter);
+    }
     throw error;
   }
 
@@ -207,6 +264,9 @@ export async function startDevSession(
       record.status = "stopping";
       await sessionWriter.write();
       await stopManagedProcesses(managed, sessionWriter, options.stopTimeoutMs ?? 3_000);
+      if (compose && !options.keepResources) {
+        await stopCompose(compose, record.resources[0], sessionWriter);
+      }
       record.status = "stopped";
       await sessionWriter.write();
     })();
@@ -240,6 +300,26 @@ export async function startDevSession(
   };
 
   return { record, stop, wait };
+}
+
+async function stopCompose(
+  compose: ComposeSession,
+  resource: DevResourceRecord | undefined,
+  writer: SessionWriter,
+): Promise<void> {
+  if (resource) {
+    resource.status = "stopping";
+    await writer.write();
+  }
+  try {
+    await compose.stop();
+    if (resource) resource.status = "stopped";
+  } catch (error) {
+    if (resource) resource.status = "failed";
+    throw error;
+  } finally {
+    await writer.write();
+  }
 }
 
 class SessionWriter {
@@ -364,4 +444,12 @@ async function ensureSafeDirectory(path: string): Promise<void> {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+function redactMessage(message: string, values: string[]): string {
+  let result = message;
+  for (const value of [...new Set(values)].sort((left, right) => right.length - left.length)) {
+    result = result.split(value).join("[REDACTED]");
+  }
+  return result;
 }

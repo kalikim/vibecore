@@ -35,6 +35,7 @@ export interface DetectedApplication {
   path: string;
   confidence: DetectionConfidence;
   evidence: DetectionEvidence[];
+  commands?: Partial<Record<"dev" | "build" | "test" | "start", string>>;
 }
 
 export interface DetectedResource {
@@ -202,6 +203,13 @@ export interface DevProcessRecord {
   status: DevProcessStatus;
 }
 
+export interface DevResourceRecord {
+  name: string;
+  provider: string;
+  projectName: string;
+  status: "starting" | "ready" | "stopping" | "stopped" | "failed";
+}
+
 export interface DevSessionRecord {
   apiVersion: "vibecore.dev/session/v1alpha1";
   id: string;
@@ -209,6 +217,7 @@ export interface DevSessionRecord {
   createdAt: string;
   updatedAt: string;
   status: "starting" | "running" | "stopping" | "stopped" | "failed";
+  resources: DevResourceRecord[];
   processes: DevProcessRecord[];
 }
 

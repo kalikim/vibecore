@@ -19,6 +19,7 @@ describe("scanRepository", () => {
       "docker-compose",
       "postgres",
     ]);
+    expect(scan.applications.find(({ framework }) => framework === "next")?.commands?.dev).toBe("pnpm dev");
   });
 
   it("creates a safe manifest proposal without mutating the fixture", async () => {
@@ -32,6 +33,7 @@ describe("scanRepository", () => {
       "next",
     ]);
     expect(proposal.environments.local?.runtime).toBe("docker-compose");
+    expect(proposal.applications.web?.commands?.build).toBe("pnpm build");
     expect(proposal.policies?.requirePlan).toBe(true);
   });
 });

@@ -41,8 +41,9 @@ Exit gate:
 ## Milestone 2 — Local orchestration
 
 Status: Started with project graph, immutable plans, policy evaluation, local state,
-the guarded adoption executor, and local process supervision. Docker resource
-orchestration remains pending.
+the guarded adoption executor, local process supervision, environment contracts,
+and project-scoped Docker Compose lifecycle management. Migration orchestration and
+additional resource adapters remain pending.
 
 Deliverables:
 

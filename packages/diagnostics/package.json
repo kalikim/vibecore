@@ -10,6 +10,7 @@
   "dependencies": {
     "@vibecore/contracts": "workspace:*",
     "@vibecore/discovery": "workspace:*",
+    "@vibecore/environment": "workspace:*",
     "@vibecore/project-graph": "workspace:*"
   }
 }

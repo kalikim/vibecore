@@ -3,15 +3,19 @@ import { resolve } from "node:path";
 import type { Diagnostic, VibecoreManifest } from "@vibecore/contracts";
 import { scanRepository } from "@vibecore/discovery";
 import { buildProjectGraph } from "@vibecore/project-graph";
+import { resolveEnvironment } from "@vibecore/environment";
 
 export async function diagnoseProject(
   manifest: VibecoreManifest,
   repositoryRoot: string,
+  environmentName = "local",
 ): Promise<Diagnostic[]> {
   const diagnostics: Diagnostic[] = [];
   const scan = await scanRepository(repositoryRoot);
   diagnostics.push(...scan.diagnostics);
   diagnostics.push(...buildProjectGraph(manifest).diagnostics);
+  const environment = await resolveEnvironment(manifest, repositoryRoot, environmentName);
+  diagnostics.push(...environment.diagnostics);
 
   const requiredNodeMajor = 22;
   const currentNodeMajor = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
