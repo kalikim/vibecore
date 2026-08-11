@@ -4,6 +4,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
 import type { ApiDocumentationAdapter, Diagnostic, DiscoveredApiRoute, OpenApiScaffold, VibecoreManifest } from "@vibecore/contracts";
 export { discoverApiRoutes } from "./routes.js";
+export { validateOpenApiDocument, validateOpenApiFile } from "./validation.js";
 
 const adapters: ApiDocumentationAdapter[] = [
   adapter("hono", "@hono/zod-openapi", ["@hono/zod-openapi", "@hono/swagger-ui"]),

@@ -44,6 +44,18 @@ Boot, and ASP.NET Core sources. Express-style `:id` and Django converters are em
 as OpenAPI `{id}` parameters. Ambiguous mappings are marked with
 `x-vibecore-review: true` rather than presented as certain.
 
+Use the documentation quality gate locally or in CI:
+
+```sh
+pnpm vibe api check --application api --spec apps/api/openapi.yaml
+pnpm vibe api check --application api --spec apps/api/openapi.yaml --json
+```
+
+It validates OpenAPI structure, unique operation IDs, successful responses, required
+path parameters, source-route coverage, stale operations, server URL hygiene, and
+security declarations. Unsecured `/admin`, `/internal`, `/debug`, or `/metrics`
+operations are errors; missing security on ordinary business operations is a warning.
+
 The project is in active early development. The source of truth is:
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md): product goals and v1 scope

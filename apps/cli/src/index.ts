@@ -10,7 +10,7 @@ import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { startDevSession } from "@vibecore/runtime";
-import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, writeOpenApiScaffold } from "@vibecore/api-docs";
+import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
@@ -77,6 +77,24 @@ api.command("adapters")
     const adapters = listApiDocumentationAdapters();
     if (options.json) printJson({ adapters });
     else for (const adapter of adapters) console.log(`${adapter.framework.padEnd(16)} ${adapter.strategy} (${adapter.packages.join(", ")})`);
+  });
+
+api.command("check")
+  .description("Validate OpenAPI quality, security, and source-route coverage")
+  .requiredOption("--application <name>", "API application declared in the manifest")
+  .requiredOption("--spec <path>", "OpenAPI YAML or JSON file")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; spec: string; manifest: string; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const application = manifest.applications[options.application];
+      if (!application) throw new Error(`Application is not declared: ${options.application}`);
+      const discovery = await discoverApiRoutes(process.cwd(), application);
+      const diagnostics = [...await validateOpenApiFile(process.cwd(), options.spec, discovery.routes), ...discovery.diagnostics];
+      printDiagnostics(diagnostics, options.json ?? false);
+      process.exitCode = hasDiagnosticErrors(diagnostics) ? 1 : 0;
+    } catch (error) { printApiError(error, options.json ?? false); }
   });
 
 program
