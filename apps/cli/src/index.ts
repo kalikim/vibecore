@@ -9,7 +9,7 @@ import { createManifestProposal, listLanguageAdapters, scanRepository } from "@v
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
-import { applyGitHubEnvironmentPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSetupPlan } from "@vibecore/github";
+import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
@@ -338,6 +338,26 @@ github.command("audit")
       }
       process.exitCode = hasDiagnosticErrors(audit.diagnostics) ? 1 : 0;
     } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.audit_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
+  });
+
+github.command("secrets")
+  .description("Plan or synchronize declared secrets to one GitHub environment")
+  .requiredOption("--repository <owner/name>", "GitHub repository")
+  .requiredOption("--environment <name>", "dev, staging, or production")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "upload values resolved from the current process environment")
+  .option("--approve <digest>", "approve the exact secret-name plan digest")
+  .option("--production-approved", "explicitly approve production secret synchronization")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { repository: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createGitHubSecretSyncPlan(manifest, options.repository, options.environment);
+      if (!options.apply) { if (options.json) printJson(plan); else { console.log(`Target: ${plan.repository} / ${plan.environment}`); for (const name of plan.secretNames) console.log(`• ${name}`); console.log(`Plan digest: ${plan.digest}`); } return; }
+      if (!options.approve) { if (options.json) printJson(plan); else console.log(`Review the secret-name plan, then apply it with:\n  vibe github secrets --repository ${plan.repository} --environment ${plan.environment} --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const applied = await applyGitHubSecretSyncPlan(plan, options.approve, process.env, options.productionApproved ?? false);
+      if (options.json) printJson({ repository: plan.repository, environment: plan.environment, appliedSecretNames: applied }); else for (const name of applied) console.log(`✓ Synchronized ${name} to ${plan.environment}`);
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.secrets_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
   });
 
 const database = program.command("db").description("Inspect Prisma schema and migration safety without modifying a database");

@@ -80,6 +80,8 @@ is implemented through the versioned API; secret upload, reviewer selection, and
 preview deployment adapters remain pending.
 Read-only remote audits detect missing environments, secret-name drift, deployment
 branch policy drift, and absent production reviewer rules.
+Environment secret synchronization is name-only during planning and streams values
+through stdin during exact-approved execution; production requires separate approval.
 
 Deliverables:
 

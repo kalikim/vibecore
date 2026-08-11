@@ -168,6 +168,18 @@ The audit compares standard environments, required secret names, protected deplo
 branches, unexpected legacy secrets, and production reviewer rules. GitHub's secret
 API returns names and timestamps only; Vibecore never requests decrypted values.
 
+Synchronize declared secret values one environment at a time:
+
+```sh
+pnpm vibe github secrets --repository owner/repository --environment staging
+pnpm vibe github secrets --repository owner/repository --environment staging --apply --approve <digest>
+```
+
+The plan contains names only. At execution time values are read from the current
+process environment, preflighted before any write, and streamed to `gh secret set`
+through stdin. They never appear in arguments, plans, JSON output, state, or logs.
+Production additionally requires `--production-approved`.
+
 Prisma projects can inspect migration history without connecting to or changing a
 database:
 
