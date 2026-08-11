@@ -10,7 +10,7 @@ import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { startDevSession } from "@vibecore/runtime";
-import { createOpenApiScaffold, listApiDocumentationAdapters, writeOpenApiScaffold } from "@vibecore/api-docs";
+import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
@@ -46,7 +46,11 @@ api.command("docs")
   .action(async (options: { application: string; manifest: string; output: string; write?: boolean; approve?: string; json?: boolean }) => {
     try {
       const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
-      const scaffold = createOpenApiScaffold(manifest, options.application, options.output);
+      const application = manifest.applications[options.application];
+      if (!application) throw new Error(`Application is not declared: ${options.application}`);
+      const discovery = await discoverApiRoutes(process.cwd(), application);
+      const scaffold = createOpenApiScaffold(manifest, options.application, options.output, discovery.routes);
+      scaffold.diagnostics.push(...discovery.diagnostics);
       if (options.write) {
         if (!options.approve) {
           if (options.json) printJson(scaffold);
@@ -63,7 +67,7 @@ api.command("docs")
         console.log(`# Digest: ${scaffold.digest}`);
         if (scaffold.diagnostics.length) printDiagnostics(scaffold.diagnostics, false);
       }
-    } catch (error) { printDatabaseError(error, options.json ?? false); }
+    } catch (error) { printApiError(error, options.json ?? false); }
   });
 
 api.command("adapters")
@@ -462,5 +466,11 @@ function printDatabaseError(error: unknown, json: boolean): void {
     component: "database",
     message,
   }], json);
+  process.exitCode = 1;
+}
+
+function printApiError(error: unknown, json: boolean): void {
+  const message = error instanceof Error ? error.message : String(error);
+  printDiagnostics([{ code: "api.documentation_failed", severity: "error", component: "api-docs", message }], json);
   process.exitCode = 1;
 }

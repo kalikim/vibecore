@@ -119,6 +119,15 @@ export interface OpenApiScaffold {
   diagnostics: Diagnostic[];
 }
 
+export interface DiscoveredApiRoute {
+  method: "get" | "post" | "put" | "patch" | "delete" | "options" | "head";
+  path: string;
+  framework: string;
+  confidence: DetectionConfidence;
+  evidence: DetectionEvidence[];
+  requiresReview?: boolean;
+}
+
 export interface ResourceManifest {
   type: string;
   provider: string;

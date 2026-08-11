@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
-import type { ApiDocumentationAdapter, Diagnostic, OpenApiScaffold, VibecoreManifest } from "@vibecore/contracts";
+import type { ApiDocumentationAdapter, Diagnostic, DiscoveredApiRoute, OpenApiScaffold, VibecoreManifest } from "@vibecore/contracts";
+export { discoverApiRoutes } from "./routes.js";
 
 const adapters: ApiDocumentationAdapter[] = [
   adapter("hono", "@hono/zod-openapi", ["@hono/zod-openapi", "@hono/swagger-ui"]),
@@ -25,7 +26,7 @@ export function listApiDocumentationAdapters(): ApiDocumentationAdapter[] {
   return adapters.map((item) => ({ ...item, packages: [...item.packages] }));
 }
 
-export function createOpenApiScaffold(manifest: VibecoreManifest, applicationName: string, output = "openapi.yaml"): OpenApiScaffold {
+export function createOpenApiScaffold(manifest: VibecoreManifest, applicationName: string, output = "openapi.yaml", discoveredRoutes: DiscoveredApiRoute[] = []): OpenApiScaffold {
   const application = manifest.applications[applicationName];
   if (!application) throw new Error(`Application is not declared: ${applicationName}`);
   if (application.type !== "api") throw new Error(`${applicationName} is not an API application`);
@@ -41,6 +42,19 @@ export function createOpenApiScaffold(manifest: VibecoreManifest, applicationNam
   const healthPath = application.health?.path;
   const paths: Record<string, unknown> = {};
   if (healthPath) paths[healthPath] = { get: { operationId: "healthCheck", summary: "Service health", tags: ["Operations"], responses: { "200": { description: "Service is healthy" }, "503": { description: "Service is unavailable" } } } };
+  for (const route of discoveredRoutes) {
+    const existingPath = paths[route.path];
+    const operations: Record<string, unknown> = isRecord(existingPath) ? existingPath : {};
+    operations[route.method] = {
+      operationId: operationId(route.method, route.path),
+      summary: `${route.method.toUpperCase()} ${route.path}`,
+      responses: { "200": { description: "Successful response" } },
+      ...(pathParameters(route.path).length ? { parameters: pathParameters(route.path) } : {}),
+      "x-vibecore-source": route.evidence.map(({ source }) => source),
+      ...(route.requiresReview ? { "x-vibecore-review": true } : {}),
+    };
+    paths[route.path] = operations;
+  }
   const document: Record<string, unknown> = {
     openapi: "3.1.0",
     info: { title: `${manifest.metadata.name} ${applicationName} API`, version: "0.1.0", ...(manifest.metadata.description ? { description: manifest.metadata.description } : {}) },
@@ -66,3 +80,5 @@ export async function writeOpenApiScaffold(rootInput: string, scaffold: OpenApiS
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
+function operationId(method: string, path: string): string { return `${method}_${path.replace(/[{}]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "") || "root"}`; }
+function pathParameters(path: string): Array<Record<string, unknown>> { return [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({ name: match[1], in: "path", required: true, schema: { type: "string" } })); }

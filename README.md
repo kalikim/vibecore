@@ -38,6 +38,12 @@ repository path escapes, and uses relative server URLs to avoid leaking internal
 hosts. Interactive Swagger UI should remain disabled or authenticated in production;
 setting `applications.<name>.config.docs.publicProduction: true` produces a warning.
 
+Route discovery is static and never imports or executes application code. Literal
+routes are extracted from Hono, Express, FastAPI, Django, Gin, Laravel, Axum, Spring
+Boot, and ASP.NET Core sources. Express-style `:id` and Django converters are emitted
+as OpenAPI `{id}` parameters. Ambiguous mappings are marked with
+`x-vibecore-review: true` rather than presented as certain.
+
 The project is in active early development. The source of truth is:
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md): product goals and v1 scope
