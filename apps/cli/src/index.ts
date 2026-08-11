@@ -8,6 +8,7 @@ import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
 import { createManifestProposal, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
+import { FileStateStore } from "@vibecore/state";
 
 const program = new Command()
   .name("vibe")
@@ -46,13 +47,12 @@ program
       const scan = await scanRepository(process.cwd());
       const manifest = scan.applications.length > 0 ? createManifestProposal(scan) : null;
       const plan = manifest ? createAdoptionPlan(scan, manifest, options.manifest) : null;
+      const proposal = { scan, manifest, plan };
 
-      if (options.json) {
-        process.stdout.write(`${JSON.stringify({ scan, manifest, plan }, null, 2)}\n`);
-      } else if (!manifest || !plan) {
+      if (!options.json && (!manifest || !plan)) {
         console.log("# Vibecore could not create an adoption proposal. No files were changed.\n");
         printDiagnostics(scan.diagnostics, false);
-      } else {
+      } else if (!options.json && manifest && plan) {
         console.log("# Read-only adoption proposal. No files were changed.\n");
         process.stdout.write(stringify(manifest, { lineWidth: 100 }));
         console.log(`\n# Plan: ${plan.id}`);
@@ -65,13 +65,16 @@ program
       }
 
       if (hasDiagnosticErrors(scan.diagnostics)) {
+        if (options.json) printJson(proposal);
         process.exitCode = 1;
         return;
       }
 
       if (options.write && plan) {
         if (!options.approve) {
-          if (!options.json) {
+          if (options.json) {
+            printJson(proposal);
+          } else {
             console.log(`\nReview the plan, then apply it with:\n  vibe adopt --write --approve ${plan.digest}`);
           }
           process.exitCode = 2;
@@ -85,10 +88,12 @@ program
           currentRepositoryFingerprint: currentScan.fingerprint,
         });
         if (options.json) {
-          process.stdout.write(`${JSON.stringify({ execution: result }, null, 2)}\n`);
+          printJson({ ...proposal, execution: result });
         } else {
           console.log(`\n✓ Applied ${result.appliedActions.length} action from ${result.planId}`);
         }
+      } else if (options.json) {
+        printJson(proposal);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -99,6 +104,36 @@ program
         message,
       };
       printDiagnostics([diagnostic], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("history")
+  .description("Show the local redacted execution ledger")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    try {
+      const state = await new FileStateStore(process.cwd()).read();
+      if (options.json) {
+        printJson(state);
+        return;
+      }
+      if (state.plans.length === 0) {
+        console.log("No local executions have been recorded");
+        return;
+      }
+      for (const plan of state.plans) {
+        console.log(`${statusSymbol(plan.status)} ${plan.id}  ${plan.status}  ${plan.environment}  ${plan.updatedAt}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{
+        code: "history.unavailable",
+        severity: "error",
+        component: "state",
+        message,
+      }], options.json ?? false);
       process.exitCode = 1;
     }
   });
@@ -141,4 +176,14 @@ function printDiagnostics(diagnostics: Diagnostic[], json: boolean): void {
   for (const diagnostic of diagnostics) {
     console.log(`${symbols[diagnostic.severity]} [${diagnostic.code}] ${diagnostic.message}`);
   }
+}
+
+function printJson(value: unknown): void {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function statusSymbol(status: string): string {
+  if (status === "succeeded") return "✓";
+  if (status === "failed") return "✗";
+  return "•";
 }

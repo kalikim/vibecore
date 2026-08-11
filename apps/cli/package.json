@@ -13,6 +13,7 @@
     "@vibecore/discovery": "workspace:*",
     "@vibecore/executor": "workspace:*",
     "@vibecore/planner": "workspace:*",
+    "@vibecore/state": "workspace:*",
     "commander": "^14.0.0",
     "yaml": "^2.8.0"
   }

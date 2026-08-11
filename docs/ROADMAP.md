@@ -40,7 +40,8 @@ Exit gate:
 
 ## Milestone 2 — Local orchestration
 
-Status: Started with project graph, immutable plans, and the guarded adoption executor
+Status: Started with project graph, immutable plans, policy evaluation, local state,
+and the guarded adoption executor
 
 Deliverables:
 

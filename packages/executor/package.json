@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@vibecore/contracts": "workspace:*",
-    "@vibecore/planner": "workspace:*"
+    "@vibecore/planner": "workspace:*",
+    "@vibecore/policy": "workspace:*",
+    "@vibecore/state": "workspace:*"
   }
 }

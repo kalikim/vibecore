@@ -6,6 +6,8 @@
     { "path": "./packages/discovery" },
     { "path": "./packages/project-graph" },
     { "path": "./packages/planner" },
+    { "path": "./packages/policy" },
+    { "path": "./packages/state" },
     { "path": "./packages/executor" },
     { "path": "./packages/diagnostics" },
     { "path": "./apps/cli" }

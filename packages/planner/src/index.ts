@@ -26,7 +26,10 @@ export function createAdoptionPlan(
     risk: "write",
     dependsOn: [],
     inputs: input,
-    permissions: [{ kind: "filesystem", target: manifestPath, access: "write" }],
+    permissions: [
+      { kind: "filesystem", target: manifestPath, access: "write" },
+      { kind: "filesystem", target: ".vibecore/state.json", access: "write" },
+    ],
   };
   const semanticPlan = {
     apiVersion: "vibecore.dev/plan/v1alpha1" as const,

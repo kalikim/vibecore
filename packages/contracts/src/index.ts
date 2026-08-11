@@ -162,6 +162,37 @@ export interface Plan {
   actions: Action[];
 }
 
+export type PolicyEffect = "allow" | "deny" | "require-approval";
+
+export interface PolicyDecision {
+  code: string;
+  effect: PolicyEffect;
+  message: string;
+  actionId?: string;
+}
+
+export type PlanExecutionStatus = "approved" | "executing" | "succeeded" | "failed" | "interrupted";
+export type ActionExecutionStatus = "pending" | "executing" | "succeeded" | "failed" | "skipped";
+
+export interface PlanLedgerEntry {
+  id: string;
+  digest: string;
+  environment: string;
+  createdAt: string;
+  updatedAt: string;
+  status: PlanExecutionStatus;
+  actions: Array<{
+    id: string;
+    status: ActionExecutionStatus;
+    errorCode?: string;
+  }>;
+}
+
+export interface VibecoreState {
+  apiVersion: "vibecore.dev/state/v1alpha1";
+  plans: PlanLedgerEntry[];
+}
+
 export interface Release {
   id: string;
   environment: string;

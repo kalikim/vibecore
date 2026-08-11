@@ -35,6 +35,7 @@ pnpm install
 pnpm vibe adopt
 pnpm vibe doctor
 pnpm vibe doctor --json
+pnpm vibe history
 ```
 
 `vibe adopt` detects supported package managers, applications, and local resources,
@@ -50,3 +51,7 @@ pnpm vibe adopt --write --approve <full-plan-digest>
 
 Adoption refuses stale approvals, modified plans, paths outside the repository, and
 existing manifests.
+
+Successful and failed executions are recorded in a local, redacted
+`.vibecore/state.json` ledger. Action inputs and secret values are never retained in
+that file.

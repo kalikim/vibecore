@@ -38,6 +38,9 @@ importers:
       '@vibecore/planner':
         specifier: workspace:*
         version: link:../../packages/planner
+      '@vibecore/state':
+        specifier: workspace:*
+        version: link:../../packages/state
       commander:
         specifier: ^14.0.0
         version: 14.0.3
@@ -85,6 +88,12 @@ importers:
       '@vibecore/planner':
         specifier: workspace:*
         version: link:../planner
+      '@vibecore/policy':
+        specifier: workspace:*
+        version: link:../policy
+      '@vibecore/state':
+        specifier: workspace:*
+        version: link:../state
 
   packages/planner:
     dependencies:
@@ -95,7 +104,19 @@ importers:
         specifier: ^2.8.0
         version: 2.9.0
 
+  packages/policy:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
   packages/project-graph:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/state:
     dependencies:
       '@vibecore/contracts':
         specifier: workspace:*
