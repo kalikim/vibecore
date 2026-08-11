@@ -145,3 +145,43 @@ Diagnostics cover every registered hosted provider, check compatible engine/tool
 provider combinations, validate required variable presence and URL shape, and detect
 incomplete control-plane credential pairs. Values are used only for validation and
 never included in human output, JSON output, plans, or state.
+
+Local PostgreSQL, MySQL, MariaDB, MongoDB, and Redis resources can also be rendered
+before startup:
+
+```sh
+pnpm vibe db compose
+pnpm vibe db compose --json
+pnpm vibe dev
+```
+
+When the local environment uses `docker-compose` and no Compose file exists,
+`vibe dev` writes a generated, gitignored model to
+`.vibecore/generated/compose.database.yaml`. Generated services bind only to
+`127.0.0.1`, persist data in named volumes, use health checks, enable
+`no-new-privileges`, and require passwords through environment-variable references.
+The generated file contains no credential values. Shutdown remains scoped to the
+current Vibecore Compose project and preserves its volumes.
+
+Example database resources:
+
+```yaml
+resources:
+  database:
+    type: database
+    provider: postgres
+    config:
+      version: 17-alpine
+  documents:
+    type: database
+    provider: mongodb
+    config:
+      replicaSet: true
+  cache:
+    type: cache
+    provider: redis
+```
+
+MongoDB replica-set mode creates its keyfile inside the container from the required
+`MONGO_REPLICA_SET_KEY` secret and initiates a single-node `rs0` during readiness.
+This supports local transactions without committing a reusable keyfile.

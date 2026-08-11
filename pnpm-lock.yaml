@@ -73,6 +73,9 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../contracts
+      yaml:
+        specifier: ^2.8.0
+        version: 2.9.0
 
   packages/diagnostics:
     dependencies:
@@ -142,6 +145,9 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@vibecore/database':
+        specifier: workspace:*
+        version: link:../database
       '@vibecore/environment':
         specifier: workspace:*
         version: link:../environment

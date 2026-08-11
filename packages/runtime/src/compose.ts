@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access } from "node:fs/promises";
+import { access, lstat, mkdir, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { VibecoreManifest } from "@vibecore/contracts";
+import { buildLocalDatabaseCompose } from "@vibecore/database";
 
 export interface CommandResult {
   exitCode: number;
@@ -44,7 +45,7 @@ export async function startComposeSession(
   if (configuredFile !== undefined && typeof configuredFile !== "string") {
     throw new Error("Docker Compose resource config.file must be a string");
   }
-  const file = configuredFile ?? await findComposeFile(root);
+  const file = configuredFile ?? await findComposeFile(root) ?? await generateDatabaseCompose(manifest, root);
   if (!file) throw new Error("Docker Compose runtime is declared, but no Compose file was found");
   const absoluteFile = resolve(root, file);
   const runner = options.runner ?? runCommand;
@@ -91,6 +92,34 @@ export async function startComposeSession(
       }
     },
   };
+}
+
+async function generateDatabaseCompose(manifest: VibecoreManifest, root: string): Promise<string | undefined> {
+  const generated = buildLocalDatabaseCompose(manifest);
+  if (Object.keys(generated.model.services).length === 0) return undefined;
+  const stateDirectory = join(root, ".vibecore");
+  const generatedDirectory = join(stateDirectory, "generated");
+  await ensureDirectory(stateDirectory);
+  await ensureDirectory(generatedDirectory);
+  const target = join(generatedDirectory, "compose.database.yaml");
+  const temporary = join(generatedDirectory, `.compose.database-${process.pid}.tmp`);
+  await writeFile(temporary, generated.yaml, { mode: 0o600, flag: "wx" });
+  await rename(temporary, target);
+  return ".vibecore/generated/compose.database.yaml";
+}
+
+async function ensureDirectory(path: string): Promise<void> {
+  try {
+    const details = await lstat(path);
+    if (!details.isDirectory() || details.isSymbolicLink()) throw new Error(`Unsafe generated Compose directory: ${path}`);
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+    await mkdir(path, { mode: 0o700 });
+  }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }
 
 export async function runCommand(

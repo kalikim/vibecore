@@ -8,6 +8,7 @@
     "default": "./dist/index.js"
   },
   "dependencies": {
-    "@vibecore/contracts": "workspace:*"
+    "@vibecore/contracts": "workspace:*",
+    "yaml": "^2.8.0"
   }
 }

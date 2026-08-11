@@ -10,7 +10,7 @@ import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { startDevSession } from "@vibecore/runtime";
-import { diagnoseDatabaseStack, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
+import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
 const program = new Command()
@@ -231,6 +231,30 @@ database
     if (options.json) printJson(result);
     else printDiagnostics(result.diagnostics, false);
     process.exitCode = hasDiagnosticErrors(result.diagnostics) ? 1 : 0;
+  });
+
+database
+  .command("compose")
+  .description("Preview the secure local Compose model generated from database resources")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { manifest: string; json?: boolean }) => {
+    const manifestPath = resolve(process.cwd(), options.manifest);
+    try {
+      const manifest = await loadManifest(manifestPath);
+      const result = buildLocalDatabaseCompose(manifest);
+      if (options.json) printJson(result);
+      else {
+        process.stdout.write(result.yaml);
+        if (result.requiredVariables.length > 0) {
+          console.log(`# Required environment variables: ${result.requiredVariables.join(", ")}`);
+        }
+        if (result.diagnostics.length > 0) printDiagnostics(result.diagnostics, false);
+      }
+      process.exitCode = hasDiagnosticErrors(result.diagnostics) ? 1 : 0;
+    } catch (error) {
+      printDatabaseError(error, options.json ?? false);
+    }
   });
 
 database

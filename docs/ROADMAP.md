@@ -47,7 +47,9 @@ inspection. The database registry now separates engine, tooling, and hosted-prov
 capabilities, including Supabase and Neon adapter definitions. Migration execution
 and authenticated provider operations remain pending. Read-only environment and
 compatibility diagnostics cover Supabase, Neon, MongoDB Atlas, PlanetScale, Upstash,
-and Railway.
+and Railway. Local Compose model generation covers PostgreSQL, MySQL, MariaDB,
+MongoDB, and Redis with loopback-only ports, credential references, persistence,
+and health checks.
 
 Deliverables:
 

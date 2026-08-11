@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { VibecoreManifest } from "@vibecore/contracts";
 import { startComposeSession, type CommandRunner } from "./compose.js";
 
@@ -55,5 +58,21 @@ describe("Docker Compose runtime", () => {
       onOutput: (_stream, message) => output.push(message),
     })).rejects.toThrow("database rejected [REDACTED]");
     expect(output.join(" ")).not.toContain("super-secret-value");
+  });
+
+  it("generates a gitignored database Compose file when none exists", async () => {
+    const root = await mkdtemp(join(tmpdir(), "vibecore-compose-generate-"));
+    const generatedManifest: VibecoreManifest = {
+      ...manifest,
+      resources: { database: { type: "database", provider: "mongodb" } },
+    };
+    const runner: CommandRunner = async () => ({ exitCode: 0, stdout: "", stderr: "" });
+    const session = await startComposeSession(generatedManifest, root, { MONGO_INITDB_ROOT_PASSWORD: "not-written" }, { runner });
+    expect(session?.file).toBe(".vibecore/generated/compose.database.yaml");
+    const source = await readFile(join(root, session!.file), "utf8");
+    expect(source).toContain("127.0.0.1:27017:27017");
+    expect(source).toContain("${MONGO_INITDB_ROOT_PASSWORD:?Set MONGO_INITDB_ROOT_PASSWORD}");
+    expect(source).not.toContain("not-written");
+    await session?.stop();
   });
 });
