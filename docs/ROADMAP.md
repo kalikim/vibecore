@@ -75,8 +75,9 @@ Exit gate:
 
 Status: Started with deterministic GitHub Actions and Dependabot generation,
 least-privilege permissions, exact-digest approval, and standardized `dev`, `staging`,
-and `production` environment gates. Remote GitHub environment creation and preview
-deployment adapters remain pending.
+and `production` environment gates. Exact-approved remote GitHub environment creation
+is implemented through the versioned API; secret upload, reviewer selection, and
+preview deployment adapters remain pending.
 
 Deliverables:
 

@@ -143,6 +143,20 @@ and `production`. Secret values are never written; the plan reports only require
 secret names. Production deployment remains a validation gate until a deployment
 adapter is configured.
 
+Remote GitHub environments use a separate approval boundary:
+
+```sh
+pnpm vibe github environments --repository owner/repository
+pnpm vibe github environments --repository owner/repository --json
+pnpm vibe github environments --repository owner/repository --apply --approve <digest> --production-approved
+```
+
+The executor uses GitHub's versioned environment API through the authenticated `gh`
+CLI. It creates `dev`, `staging`, and `production`; staging and production accept only
+protected branches. It does not upload secret values. Required secret names remain a
+redacted configuration checklist, and production reviewers must be configured in
+GitHub because reviewer identities cannot be safely guessed.
+
 Prisma projects can inspect migration history without connecting to or changing a
 database:
 

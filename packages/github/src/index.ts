@@ -3,6 +3,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
 import type { VibecoreManifest } from "@vibecore/contracts";
 import { digestValue } from "@vibecore/planner";
+export * from "./environments.js";
 
 export interface GitHubGeneratedFile { path: string; content: string; }
 export interface GitHubSetupPlan { digest: string; files: GitHubGeneratedFile[]; environments: string[]; secretNames: Record<string, string[]>; warnings: string[]; }

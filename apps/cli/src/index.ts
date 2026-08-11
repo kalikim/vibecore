@@ -9,7 +9,7 @@ import { createManifestProposal, listLanguageAdapters, scanRepository } from "@v
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
-import { applyGitHubSetupPlan, createGitHubSetupPlan } from "@vibecore/github";
+import { applyGitHubEnvironmentPlan, applyGitHubSetupPlan, createGitHubEnvironmentPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
@@ -298,6 +298,29 @@ github.command("setup")
       printDiagnostics([{ code: "github.setup_failed", severity: "error", component: "github", message }], options.json ?? false);
       process.exitCode = 1;
     }
+  });
+
+github.command("environments")
+  .description("Plan or apply dev, staging, and production GitHub environments")
+  .requiredOption("--repository <owner/name>", "GitHub repository")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "create or update the remote environments")
+  .option("--approve <digest>", "approve the exact remote plan digest")
+  .option("--production-approved", "explicitly approve remote production configuration")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { repository: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createGitHubEnvironmentPlan(manifest, options.repository);
+      if (!options.apply) {
+        if (options.json) printJson(plan);
+        else { console.log(`Repository: ${plan.repository}`); for (const environment of plan.environments) console.log(`• ${environment.name} (${environment.secretNames.length} secret name contract(s))`); console.log(`Plan digest: ${plan.digest}`); }
+        return;
+      }
+      if (!options.approve) { if (options.json) printJson(plan); else console.log(`Review the plan, then apply it with:\n  vibe github environments --repository ${plan.repository} --apply --approve ${plan.digest} --production-approved`); process.exitCode = 2; return; }
+      const applied = await applyGitHubEnvironmentPlan(plan, options.approve, options.productionApproved ?? false);
+      if (options.json) printJson({ plan, applied }); else for (const name of applied) console.log(`✓ Configured GitHub environment ${name}`);
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.environments_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
   });
 
 const database = program.command("db").description("Inspect Prisma schema and migration safety without modifying a database");
