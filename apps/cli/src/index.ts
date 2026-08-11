@@ -9,7 +9,7 @@ import { createManifestProposal, listLanguageAdapters, scanRepository } from "@v
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
-import { applyGitHubEnvironmentPlan, applyGitHubSetupPlan, createGitHubEnvironmentPlan, createGitHubSetupPlan } from "@vibecore/github";
+import { applyGitHubEnvironmentPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
@@ -321,6 +321,23 @@ github.command("environments")
       const applied = await applyGitHubEnvironmentPlan(plan, options.approve, options.productionApproved ?? false);
       if (options.json) printJson({ plan, applied }); else for (const name of applied) console.log(`✓ Configured GitHub environment ${name}`);
     } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.environments_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
+  });
+
+github.command("audit")
+  .description("Compare remote GitHub environments and secret names with the manifest")
+  .requiredOption("--repository <owner/name>", "GitHub repository")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { repository: string; manifest: string; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const audit = await auditGitHubEnvironments(manifest, options.repository);
+      if (options.json) printJson(audit); else {
+        for (const environment of audit.environments) console.log(`${environment.exists ? "✓" : "✗"} ${environment.name}  ${environment.configuredSecretNames.length}/${environment.requiredSecretNames.length} required secrets configured`);
+        printDiagnostics(audit.diagnostics, false);
+      }
+      process.exitCode = hasDiagnosticErrors(audit.diagnostics) ? 1 : 0;
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.audit_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
   });
 
 const database = program.command("db").description("Inspect Prisma schema and migration safety without modifying a database");

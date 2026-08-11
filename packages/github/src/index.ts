@@ -4,6 +4,7 @@ import { stringify } from "yaml";
 import type { VibecoreManifest } from "@vibecore/contracts";
 import { digestValue } from "@vibecore/planner";
 export * from "./environments.js";
+export * from "./audit.js";
 
 export interface GitHubGeneratedFile { path: string; content: string; }
 export interface GitHubSetupPlan { digest: string; files: GitHubGeneratedFile[]; environments: string[]; secretNames: Record<string, string[]>; warnings: string[]; }

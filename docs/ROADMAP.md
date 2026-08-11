@@ -78,6 +78,8 @@ least-privilege permissions, exact-digest approval, and standardized `dev`, `sta
 and `production` environment gates. Exact-approved remote GitHub environment creation
 is implemented through the versioned API; secret upload, reviewer selection, and
 preview deployment adapters remain pending.
+Read-only remote audits detect missing environments, secret-name drift, deployment
+branch policy drift, and absent production reviewer rules.
 
 Deliverables:
 

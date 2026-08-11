@@ -157,6 +157,17 @@ protected branches. It does not upload secret values. Required secret names rema
 redacted configuration checklist, and production reviewers must be configured in
 GitHub because reviewer identities cannot be safely guessed.
 
+Audit remote configuration without reading secret values:
+
+```sh
+pnpm vibe github audit --repository owner/repository
+pnpm vibe github audit --repository owner/repository --json
+```
+
+The audit compares standard environments, required secret names, protected deployment
+branches, unexpected legacy secrets, and production reviewer rules. GitHub's secret
+API returns names and timestamps only; Vibecore never requests decrypted values.
+
 Prisma projects can inspect migration history without connecting to or changing a
 database:
 
