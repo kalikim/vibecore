@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/diagnostics",
+  "name": "@vibecore/executor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@vibecore/contracts": "workspace:*",
-    "@vibecore/discovery": "workspace:*",
-    "@vibecore/project-graph": "workspace:*"
+    "@vibecore/planner": "workspace:*"
   }
 }

@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Diagnostic, VibecoreManifest } from "@vibecore/contracts";
 import { scanRepository } from "@vibecore/discovery";
+import { buildProjectGraph } from "@vibecore/project-graph";
 
 export async function diagnoseProject(
   manifest: VibecoreManifest,
@@ -10,6 +11,7 @@ export async function diagnoseProject(
   const diagnostics: Diagnostic[] = [];
   const scan = await scanRepository(repositoryRoot);
   diagnostics.push(...scan.diagnostics);
+  diagnostics.push(...buildProjectGraph(manifest).diagnostics);
 
   const requiredNodeMajor = 22;
   const currentNodeMajor = Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10);
@@ -81,22 +83,6 @@ export async function diagnoseProject(
           severity: "error",
           component: variableName,
           message: `${variableName} references unknown application: ${applicationName}`,
-        });
-      }
-    }
-  }
-
-  for (const [name, application] of Object.entries(manifest.applications)) {
-    for (const dependency of application.dependsOn ?? []) {
-      const exists =
-        dependency in manifest.applications || dependency in (manifest.resources ?? {});
-
-      if (!exists) {
-        diagnostics.push({
-          code: "dependency.reference.missing",
-          severity: "error",
-          component: name,
-          message: `${name} depends on unknown component: ${dependency}`,
         });
       }
     }

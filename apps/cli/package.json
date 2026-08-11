@@ -11,6 +11,8 @@
     "@vibecore/contracts": "workspace:*",
     "@vibecore/diagnostics": "workspace:*",
     "@vibecore/discovery": "workspace:*",
+    "@vibecore/executor": "workspace:*",
+    "@vibecore/planner": "workspace:*",
     "commander": "^14.0.0",
     "yaml": "^2.8.0"
   }

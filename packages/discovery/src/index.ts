@@ -1,4 +1,5 @@
 import { access, readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type {
   ApplicationType,
@@ -68,6 +69,7 @@ export async function scanRepository(repositoryRoot: string): Promise<Repository
   const packageManager = await detectPackageManager(root, packageDocuments, diagnostics);
   const applications = detectApplications(root, packageDocuments);
   const resources = await detectResources(root, packageDocuments);
+  const fingerprint = await fingerprintInputs(root, packageFiles);
 
   if (applications.length === 0) {
     diagnostics.push({
@@ -80,11 +82,36 @@ export async function scanRepository(repositoryRoot: string): Promise<Repository
 
   return {
     root,
+    fingerprint,
     ...(packageManager ? { packageManager } : {}),
     applications,
     resources,
     diagnostics,
   };
+}
+
+async function fingerprintInputs(root: string, packageFiles: string[]): Promise<string> {
+  const candidates = [
+    ...packageFiles,
+    ...lockfiles.map(({ file }) => join(root, file)),
+    ...["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml", "prisma/schema.prisma"]
+      .map((file) => join(root, file)),
+  ];
+  const hash = createHash("sha256");
+
+  for (const file of [...new Set(candidates)].sort()) {
+    try {
+      const content = await readFile(file);
+      hash.update(toProjectPath(root, file));
+      hash.update("\0");
+      hash.update(content);
+      hash.update("\0");
+    } catch {
+      // Missing optional inputs are represented by their absence from the digest.
+    }
+  }
+
+  return hash.digest("hex");
 }
 
 export function createManifestProposal(scan: RepositoryScan): VibecoreManifest {

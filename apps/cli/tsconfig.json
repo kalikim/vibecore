@@ -9,6 +9,8 @@
     { "path": "../../packages/contracts" },
     { "path": "../../packages/config" },
     { "path": "../../packages/discovery" },
+    { "path": "../../packages/planner" },
+    { "path": "../../packages/executor" },
     { "path": "../../packages/diagnostics" }
   ]
 }

@@ -6,6 +6,8 @@ import { loadManifest, ManifestValidationError } from "@vibecore/config";
 import type { Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
 import { createManifestProposal, scanRepository } from "@vibecore/discovery";
+import { applyAdoptionPlan } from "@vibecore/executor";
+import { createAdoptionPlan } from "@vibecore/planner";
 
 const program = new Command()
   .name("vibe")
@@ -36,25 +38,69 @@ program
   .command("adopt")
   .description("Inspect an existing repository and propose a Vibecore manifest")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
-    const scan = await scanRepository(process.cwd());
-    const manifest = scan.applications.length > 0 ? createManifestProposal(scan) : null;
+  .option("--write", "create the manifest after digest approval")
+  .option("--approve <digest>", "approve the exact generated plan digest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .action(async (options: { json?: boolean; write?: boolean; approve?: string; manifest: string }) => {
+    try {
+      const scan = await scanRepository(process.cwd());
+      const manifest = scan.applications.length > 0 ? createManifestProposal(scan) : null;
+      const plan = manifest ? createAdoptionPlan(scan, manifest, options.manifest) : null;
 
-    if (options.json) {
-      process.stdout.write(`${JSON.stringify({ scan, manifest }, null, 2)}\n`);
-    } else if (!manifest) {
-      console.log("# Vibecore could not create an adoption proposal. No files were changed.\n");
-      printDiagnostics(scan.diagnostics, false);
-    } else {
-      console.log("# Read-only adoption proposal. No files were changed.\n");
-      process.stdout.write(stringify(manifest, { lineWidth: 100 }));
-      if (scan.diagnostics.length > 0) {
-        console.log("\n# Discovery diagnostics");
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify({ scan, manifest, plan }, null, 2)}\n`);
+      } else if (!manifest || !plan) {
+        console.log("# Vibecore could not create an adoption proposal. No files were changed.\n");
         printDiagnostics(scan.diagnostics, false);
+      } else {
+        console.log("# Read-only adoption proposal. No files were changed.\n");
+        process.stdout.write(stringify(manifest, { lineWidth: 100 }));
+        console.log(`\n# Plan: ${plan.id}`);
+        console.log(`# Digest: ${plan.digest}`);
+        console.log(`# Action: ${plan.actions[0]?.summary ?? "Create manifest"}`);
+        if (scan.diagnostics.length > 0) {
+          console.log("\n# Discovery diagnostics");
+          printDiagnostics(scan.diagnostics, false);
+        }
       }
-    }
 
-    process.exitCode = hasDiagnosticErrors(scan.diagnostics) ? 1 : 0;
+      if (hasDiagnosticErrors(scan.diagnostics)) {
+        process.exitCode = 1;
+        return;
+      }
+
+      if (options.write && plan) {
+        if (!options.approve) {
+          if (!options.json) {
+            console.log(`\nReview the plan, then apply it with:\n  vibe adopt --write --approve ${plan.digest}`);
+          }
+          process.exitCode = 2;
+          return;
+        }
+
+        const currentScan = await scanRepository(process.cwd());
+        const result = await applyAdoptionPlan(plan, {
+          repositoryRoot: process.cwd(),
+          approval: options.approve,
+          currentRepositoryFingerprint: currentScan.fingerprint,
+        });
+        if (options.json) {
+          process.stdout.write(`${JSON.stringify({ execution: result }, null, 2)}\n`);
+        } else {
+          console.log(`\n✓ Applied ${result.appliedActions.length} action from ${result.planId}`);
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const diagnostic: Diagnostic = {
+        code: "adoption.failed",
+        severity: "error",
+        component: "adoption",
+        message,
+      };
+      printDiagnostics([diagnostic], options.json ?? false);
+      process.exitCode = 1;
+    }
   });
 
 await program.parseAsync();

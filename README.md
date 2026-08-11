@@ -39,3 +39,14 @@ pnpm vibe doctor --json
 
 `vibe adopt` detects supported package managers, applications, and local resources,
 then prints a proposed manifest without changing the repository.
+
+To create a new manifest, request a write plan, review its digest, and approve that
+exact plan:
+
+```sh
+pnpm vibe adopt --write
+pnpm vibe adopt --write --approve <full-plan-digest>
+```
+
+Adoption refuses stale approvals, modified plans, paths outside the repository, and
+existing manifests.

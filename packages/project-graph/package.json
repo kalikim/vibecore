@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/diagnostics",
+  "name": "@vibecore/project-graph",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,6 @@
     "default": "./dist/index.js"
   },
   "dependencies": {
-    "@vibecore/contracts": "workspace:*",
-    "@vibecore/discovery": "workspace:*",
-    "@vibecore/project-graph": "workspace:*"
+    "@vibecore/contracts": "workspace:*"
   }
 }

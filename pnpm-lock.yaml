@@ -32,6 +32,12 @@ importers:
       '@vibecore/discovery':
         specifier: workspace:*
         version: link:../../packages/discovery
+      '@vibecore/executor':
+        specifier: workspace:*
+        version: link:../../packages/executor
+      '@vibecore/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
       commander:
         specifier: ^14.0.0
         version: 14.0.3
@@ -61,8 +67,35 @@ importers:
       '@vibecore/discovery':
         specifier: workspace:*
         version: link:../discovery
+      '@vibecore/project-graph':
+        specifier: workspace:*
+        version: link:../project-graph
 
   packages/discovery:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/executor:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@vibecore/planner':
+        specifier: workspace:*
+        version: link:../planner
+
+  packages/planner:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      yaml:
+        specifier: ^2.8.0
+        version: 2.9.0
+
+  packages/project-graph:
     dependencies:
       '@vibecore/contracts':
         specifier: workspace:*

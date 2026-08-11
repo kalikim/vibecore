@@ -48,6 +48,7 @@ export interface DetectedResource {
 
 export interface RepositoryScan {
   root: string;
+  fingerprint: string;
   packageManager?: {
     name: PackageManager;
     confidence: DetectionConfidence;
@@ -55,6 +56,27 @@ export interface RepositoryScan {
   };
   applications: DetectedApplication[];
   resources: DetectedResource[];
+  diagnostics: Diagnostic[];
+}
+
+export type ProjectNodeKind = "application" | "resource" | "environment";
+
+export interface ProjectNode {
+  id: string;
+  name: string;
+  kind: ProjectNodeKind;
+  data: ApplicationManifest | ResourceManifest | VibecoreManifest["environments"][string];
+}
+
+export interface ProjectEdge {
+  from: string;
+  to: string;
+  kind: "depends-on" | "targets";
+}
+
+export interface ProjectGraph {
+  nodes: ProjectNode[];
+  edges: ProjectEdge[];
   diagnostics: Diagnostic[];
 }
 
