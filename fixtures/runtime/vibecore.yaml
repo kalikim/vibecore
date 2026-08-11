@@ -1,0 +1,21 @@
+$schema: ../../schemas/vibecore.schema.json
+apiVersion: vibecore.dev/v1alpha1
+kind: Application
+
+metadata:
+  name: runtime-fixture
+
+applications:
+  api:
+    type: api
+    framework: node
+    path: .
+    commands:
+      dev: node healthy-server.mjs
+    health:
+      path: /health
+      timeoutSeconds: 5
+
+environments:
+  local:
+    runtime: local-process

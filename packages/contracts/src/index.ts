@@ -193,6 +193,25 @@ export interface VibecoreState {
   plans: PlanLedgerEntry[];
 }
 
+export type DevProcessStatus = "starting" | "healthy" | "running" | "stopping" | "stopped" | "failed";
+
+export interface DevProcessRecord {
+  application: string;
+  pid: number;
+  port: number;
+  status: DevProcessStatus;
+}
+
+export interface DevSessionRecord {
+  apiVersion: "vibecore.dev/session/v1alpha1";
+  id: string;
+  repositoryRoot: string;
+  createdAt: string;
+  updatedAt: string;
+  status: "starting" | "running" | "stopping" | "stopped" | "failed";
+  processes: DevProcessRecord[];
+}
+
 export interface Release {
   id: string;
   environment: string;

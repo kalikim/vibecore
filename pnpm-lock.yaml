@@ -38,6 +38,9 @@ importers:
       '@vibecore/planner':
         specifier: workspace:*
         version: link:../../packages/planner
+      '@vibecore/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@vibecore/state':
         specifier: workspace:*
         version: link:../../packages/state
@@ -115,6 +118,15 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../contracts
+
+  packages/runtime:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@vibecore/project-graph':
+        specifier: workspace:*
+        version: link:../project-graph
 
   packages/state:
     dependencies:

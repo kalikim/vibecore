@@ -9,6 +9,7 @@ import { createManifestProposal, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
+import { startDevSession } from "@vibecore/runtime";
 
 const program = new Command()
   .name("vibe")
@@ -134,6 +135,50 @@ program
         component: "state",
         message,
       }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("dev")
+  .description("Start and supervise declared local application processes")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .action(async (options: { manifest: string }) => {
+    const manifestPath = resolve(process.cwd(), options.manifest);
+    try {
+      const manifest = await loadManifest(manifestPath);
+      const session = await startDevSession(manifest, process.cwd(), {
+        onLog: ({ application, stream, message }) => {
+          const marker = stream === "stderr" ? "!" : stream === "system" ? "•" : "│";
+          console.log(`${marker} ${application.padEnd(12)} ${message}`);
+        },
+      });
+      console.log(`✓ Development session ${session.record.id} is running`);
+      for (const process of session.record.processes) {
+        console.log(`  ${process.application.padEnd(12)} http://127.0.0.1:${process.port}`);
+      }
+
+      let stopping = false;
+      const stop = () => {
+        if (stopping) return;
+        stopping = true;
+        console.log("\nStopping Vibecore development session...");
+        void session.stop();
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+
+      await session.wait();
+      await session.stop();
+      console.log("✓ Development session stopped");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{
+        code: "dev.failed",
+        severity: "error",
+        component: "runtime",
+        message,
+      }], false);
       process.exitCode = 1;
     }
   });

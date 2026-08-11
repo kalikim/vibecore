@@ -55,3 +55,14 @@ existing manifests.
 Successful and failed executions are recorded in a local, redacted
 `.vibecore/state.json` ledger. Action inputs and secret values are never retained in
 that file.
+
+Applications with a declared `commands.dev` can be started under one supervised
+session:
+
+```sh
+pnpm vibe dev
+```
+
+Commands are executed directly without a shell. Vibecore assigns stable local ports,
+waits for configured health checks, prefixes application logs, and stops only the
+processes created by the current session.

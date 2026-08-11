@@ -12,6 +12,7 @@
     { "path": "../../packages/planner" },
     { "path": "../../packages/executor" },
     { "path": "../../packages/state" },
+    { "path": "../../packages/runtime" },
     { "path": "../../packages/diagnostics" }
   ]
 }
