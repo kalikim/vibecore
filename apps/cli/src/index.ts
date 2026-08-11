@@ -5,18 +5,75 @@ import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
 import type { Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
-import { createManifestProposal, scanRepository } from "@vibecore/discovery";
+import { createManifestProposal, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { startDevSession } from "@vibecore/runtime";
-import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
+import { createOpenApiScaffold, listApiDocumentationAdapters, writeOpenApiScaffold } from "@vibecore/api-docs";
+import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
 const program = new Command()
   .name("vibe")
   .description("Local-first application orchestration")
   .version("0.0.0");
+
+program
+  .command("languages")
+  .description("Show supported language, package-tool, and framework adapters")
+  .option("--json", "print machine-readable JSON")
+  .action((options: { json?: boolean }) => {
+    const adapters = listLanguageAdapters();
+    if (options.json) printJson({ adapters });
+    else for (const adapter of adapters) {
+      console.log(`${adapter.displayName} (${adapter.id})`);
+      console.log(`  Package tools: ${adapter.packageTools.join(", ")}`);
+      console.log(`  Frameworks: ${adapter.frameworks.join(", ")}`);
+    }
+  });
+
+const api = program.command("api").description("Generate and validate secure API documentation");
+
+api.command("docs")
+  .description("Preview or write a deterministic OpenAPI 3.1 scaffold")
+  .requiredOption("--application <name>", "API application declared in the manifest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("-o, --output <path>", "OpenAPI output path", "openapi.yaml")
+  .option("--write", "write after exact digest approval")
+  .option("--approve <digest>", "approve the exact generated digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; manifest: string; output: string; write?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const scaffold = createOpenApiScaffold(manifest, options.application, options.output);
+      if (options.write) {
+        if (!options.approve) {
+          if (options.json) printJson(scaffold);
+          else console.log(`Review the document, then write it with:\n  vibe api docs --application ${options.application} --output ${options.output} --write --approve ${scaffold.digest}`);
+          process.exitCode = 2; return;
+        }
+        const written = await writeOpenApiScaffold(process.cwd(), scaffold, options.approve);
+        if (options.json) printJson({ scaffold, written }); else console.log(`✓ Wrote ${written}`);
+        return;
+      }
+      if (options.json) printJson(scaffold);
+      else {
+        process.stdout.write(scaffold.source);
+        console.log(`# Digest: ${scaffold.digest}`);
+        if (scaffold.diagnostics.length) printDiagnostics(scaffold.diagnostics, false);
+      }
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
+  });
+
+api.command("adapters")
+  .description("Show framework-specific OpenAPI and Swagger adapters")
+  .option("--json", "print machine-readable JSON")
+  .action((options: { json?: boolean }) => {
+    const adapters = listApiDocumentationAdapters();
+    if (options.json) printJson({ adapters });
+    else for (const adapter of adapters) console.log(`${adapter.framework.padEnd(16)} ${adapter.strategy} (${adapter.packages.join(", ")})`);
+  });
 
 program
   .command("doctor")
@@ -255,6 +312,29 @@ database
     } catch (error) {
       printDatabaseError(error, options.json ?? false);
     }
+  });
+
+database
+  .command("inspect-tool")
+  .description("Inspect Drizzle SQL or declarative MongoDB migrations offline")
+  .requiredOption("--tool <tool>", "drizzle or mongodb")
+  .option("--path <path>", "migration directory")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { tool: string; path?: string; json?: boolean }) => {
+    try {
+      const result = options.tool === "drizzle"
+        ? await inspectDrizzleMigrations(process.cwd(), options.path ?? "drizzle")
+        : options.tool === "mongodb"
+          ? await inspectMongoMigrations(process.cwd(), options.path ?? "migrations/mongodb")
+          : (() => { throw new Error(`Unknown tooling adapter ${JSON.stringify(options.tool)}; expected drizzle or mongodb`); })();
+      if (options.json) printJson(result);
+      else {
+        console.log(`${result.tool} migrations: ${result.migrations.length}; overall risk: ${result.risk}`);
+        for (const migration of result.migrations) console.log(`${riskSymbol(migration.risk)} ${migration.name}  ${migration.risk}`);
+        if (result.diagnostics.length) printDiagnostics(result.diagnostics, false);
+      }
+      process.exitCode = result.risk === "destructive" ? 2 : 0;
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
   });
 
 database

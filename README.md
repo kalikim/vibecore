@@ -8,6 +8,36 @@ discovery, local services, Git and GitHub setup, database safety, validation,
 deployment, and release recovery, without replacing the frameworks developers
 already use.
 
+## Language support
+
+Run `pnpm vibe languages` to inspect the language adapter registry. First-class
+detection currently covers JavaScript/TypeScript, Python, Go, PHP, Rust, Java,
+Kotlin, and .NET, including FastAPI, Django, Gin, Laravel, Axum, Spring Boot, and
+ASP.NET Core. Package-tool detection covers pnpm/npm/yarn/bun, uv/pip/Poetry, Go
+modules, Composer, Cargo, Maven/Gradle, and dotnet/NuGet.
+
+Detected applications receive structured direct-execution commands where their
+entrypoint is unambiguous. FastAPI projects are detected but do not receive a
+guessed module path; Vibecore requires that command to be declared explicitly.
+
+## API documentation
+
+Vibecore generates deterministic OpenAPI 3.1 contracts and maps them to Swagger or
+framework-native documentation adapters for Hono, NestJS, Express, FastAPI, Django,
+Gin, Laravel, Axum, Spring Boot, and ASP.NET Core.
+
+```sh
+pnpm vibe api adapters
+pnpm vibe api docs --application api --output apps/api/openapi.yaml
+pnpm vibe api docs --application api --output apps/api/openapi.yaml --write
+pnpm vibe api docs --application api --output apps/api/openapi.yaml --write --approve <digest>
+```
+
+Generation is preview-first, requires exact digest approval, refuses overwrites and
+repository path escapes, and uses relative server URLs to avoid leaking internal
+hosts. Interactive Swagger UI should remain disabled or authenticated in production;
+setting `applications.<name>.config.docs.publicProduction: true` produces a warning.
+
 The project is in active early development. The source of truth is:
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md): product goals and v1 scope
@@ -185,3 +215,17 @@ resources:
 MongoDB replica-set mode creates its keyfile inside the container from the required
 `MONGO_REPLICA_SET_KEY` secret and initiates a single-node `rs0` during readiness.
 This supports local transactions without committing a reusable keyfile.
+
+Drizzle and MongoDB migrations can be inspected offline:
+
+```sh
+pnpm vibe db inspect-tool --tool drizzle --path drizzle
+pnpm vibe db inspect-tool --tool mongodb --path migrations/mongodb
+```
+
+Drizzle inspection supports both flat `.sql` files and timestamped directories with
+`migration.sql`. MongoDB uses ordered declarative JSON files containing an
+`operations` array. Supported operation types are `createCollection`, `createIndex`,
+`collMod`, `renameCollection`, `dropIndex`, `updateMany`, `deleteMany`, and
+`dropCollection`. Unknown operations are blocked as destructive instead of executing
+arbitrary JavaScript.

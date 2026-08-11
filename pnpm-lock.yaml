@@ -20,6 +20,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@vibecore/api-docs':
+        specifier: workspace:*
+        version: link:../../packages/api-docs
       '@vibecore/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -50,6 +53,15 @@ importers:
       commander:
         specifier: ^14.0.0
         version: 14.0.3
+      yaml:
+        specifier: ^2.8.0
+        version: 2.9.0
+
+  packages/api-docs:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       yaml:
         specifier: ^2.8.0
         version: 2.9.0

@@ -29,8 +29,11 @@ Deliverables:
 - manifest parser with source-aware validation errors;
 - read-only repository scanner;
 - Next.js, Expo, Hono, Prisma, and pnpm detection;
+- Python/FastAPI/Django, Go/Gin, PHP/Laravel, Rust/Axum, Java/Kotlin Spring Boot,
+  and .NET/ASP.NET Core detection;
 - `vibe adopt --plan` and `vibe doctor`;
 - human and JSON output.
+- deterministic OpenAPI 3.1 scaffolding and framework-specific Swagger guidance;
 
 Exit gate:
 
@@ -50,6 +53,9 @@ compatibility diagnostics cover Supabase, Neon, MongoDB Atlas, PlanetScale, Upst
 and Railway. Local Compose model generation covers PostgreSQL, MySQL, MariaDB,
 MongoDB, and Redis with loopback-only ports, credential references, persistence,
 and health checks.
+Offline tooling inspection now covers Prisma SQL, Drizzle SQL, and declarative
+MongoDB operations. TypeORM, MikroORM, and framework-native Mongoose discovery remain
+pending.
 
 Deliverables:
 

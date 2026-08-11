@@ -7,6 +7,7 @@
     "vibe": "./dist/index.js"
   },
   "dependencies": {
+    "@vibecore/api-docs": "workspace:*",
     "@vibecore/config": "workspace:*",
     "@vibecore/contracts": "workspace:*",
     "@vibecore/database": "workspace:*",

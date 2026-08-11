@@ -6,6 +6,7 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
+    { "path": "../../packages/api-docs" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/database" },
     { "path": "../../packages/config" },

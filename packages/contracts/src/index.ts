@@ -32,6 +32,7 @@ export interface DetectedApplication {
   name: string;
   type: ApplicationType;
   framework: string;
+  language?: string;
   path: string;
   confidence: DetectionConfidence;
   evidence: DetectionEvidence[];
@@ -84,11 +85,38 @@ export interface ProjectGraph {
 export interface ApplicationManifest {
   type: ApplicationType;
   framework: string;
+  language?: string;
   path: string;
   dependsOn?: string[];
   commands?: Partial<Record<"dev" | "build" | "test" | "start", string>>;
   health?: { path?: string; timeoutSeconds?: number };
   config?: Record<string, unknown>;
+}
+
+export interface LanguageAdapterMetadata {
+  id: string;
+  displayName: string;
+  packageTools: string[];
+  frameworks: string[];
+  detectionFiles: string[];
+  status: "implemented" | "planned";
+}
+
+export interface ApiDocumentationAdapter {
+  framework: string;
+  strategy: string;
+  packages: string[];
+  specificationPath: string;
+  uiPath: string;
+}
+
+export interface OpenApiScaffold {
+  application: string;
+  path: string;
+  digest: string;
+  document: Record<string, unknown>;
+  source: string;
+  diagnostics: Diagnostic[];
 }
 
 export interface ResourceManifest {
@@ -304,5 +332,13 @@ export interface DatabaseStackDiagnosticResult {
   engine: string;
   tool?: string;
   provider?: string;
+  diagnostics: Diagnostic[];
+}
+
+export interface DatabaseToolInspection {
+  tool: "drizzle" | "mongodb";
+  path: string;
+  migrations: DatabaseMigrationInspection[];
+  risk: DatabaseMigrationRisk;
   diagnostics: Diagnostic[];
 }

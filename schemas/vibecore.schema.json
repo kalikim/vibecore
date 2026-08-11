@@ -62,6 +62,7 @@
       "properties": {
         "type": { "enum": ["web", "api", "mobile", "worker"] },
         "framework": { "$ref": "#/$defs/identifier" },
+        "language": { "$ref": "#/$defs/identifier" },
         "path": { "type": "string", "minLength": 1 },
         "dependsOn": {
           "type": "array",

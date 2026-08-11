@@ -7,6 +7,7 @@ import type {
   DetectedResource,
   Diagnostic,
   PackageManager,
+  LanguageAdapterMetadata,
   RepositoryScan,
   VibecoreManifest,
 } from "@vibecore/contracts";
@@ -61,13 +62,26 @@ const lockfiles: Array<{ file: string; manager: PackageManager }> = [
   { file: "bun.lockb", manager: "bun" },
 ];
 
+const languageAdapters: LanguageAdapterMetadata[] = [
+  { id: "javascript", displayName: "JavaScript / TypeScript", packageTools: ["pnpm", "npm", "yarn", "bun"], frameworks: ["next", "expo", "hono", "nest", "express", "nuxt", "remix", "vite-react"], detectionFiles: ["package.json"], status: "implemented" },
+  { id: "python", displayName: "Python", packageTools: ["uv", "pip", "poetry"], frameworks: ["fastapi", "django"], detectionFiles: ["pyproject.toml", "requirements.txt", "manage.py"], status: "implemented" },
+  { id: "go", displayName: "Go", packageTools: ["go-modules"], frameworks: ["go-http", "gin"], detectionFiles: ["go.mod"], status: "implemented" },
+  { id: "php", displayName: "PHP", packageTools: ["composer"], frameworks: ["laravel"], detectionFiles: ["composer.json", "artisan"], status: "implemented" },
+  { id: "rust", displayName: "Rust", packageTools: ["cargo"], frameworks: ["axum"], detectionFiles: ["Cargo.toml"], status: "implemented" },
+  { id: "java", displayName: "Java", packageTools: ["maven", "gradle"], frameworks: ["spring-boot"], detectionFiles: ["pom.xml", "build.gradle"], status: "implemented" },
+  { id: "kotlin", displayName: "Kotlin", packageTools: ["maven", "gradle"], frameworks: ["spring-boot"], detectionFiles: ["pom.xml", "build.gradle.kts"], status: "implemented" },
+  { id: "dotnet", displayName: ".NET", packageTools: ["nuget", "dotnet"], frameworks: ["aspnet-core"], detectionFiles: ["*.csproj", "*.fsproj"], status: "implemented" },
+];
+
+export function listLanguageAdapters(): LanguageAdapterMetadata[] { return languageAdapters.map((adapter) => ({ ...adapter, packageTools: [...adapter.packageTools], frameworks: [...adapter.frameworks], detectionFiles: [...adapter.detectionFiles] })); }
+
 export async function scanRepository(repositoryRoot: string): Promise<RepositoryScan> {
   const root = resolve(repositoryRoot);
   const diagnostics: Diagnostic[] = [];
   const packageFiles = await findPackageFiles(root);
   const packageDocuments = await readPackages(packageFiles, diagnostics);
   const packageManager = await detectPackageManager(root, packageDocuments, diagnostics);
-  const applications = detectApplications(root, packageDocuments, packageManager?.name);
+  const applications = [...detectApplications(root, packageDocuments, packageManager?.name), ...await detectNonNodeApplications(root)];
   const resources = await detectResources(root, packageDocuments);
   const fingerprint = await fingerprintInputs(root, packageFiles);
 
@@ -93,6 +107,7 @@ export async function scanRepository(repositoryRoot: string): Promise<Repository
 async function fingerprintInputs(root: string, packageFiles: string[]): Promise<string> {
   const candidates = [
     ...packageFiles,
+    ...await findLanguageFiles(root),
     ...lockfiles.map(({ file }) => join(root, file)),
     ...["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml", "prisma/schema.prisma"]
       .map((file) => join(root, file)),
@@ -127,6 +142,7 @@ export function createManifestProposal(scan: RepositoryScan): VibecoreManifest {
     applications[uniqueName(application.name, applications)] = {
       type: application.type,
       framework: application.framework,
+      ...(application.language ? { language: application.language } : {}),
       path: application.path,
       ...(application.commands ? { commands: application.commands } : {}),
     };
@@ -275,6 +291,7 @@ function detectApplications(
       name: sanitizeIdentifier(packageName || fallbackName),
       type: signature?.type ?? "worker",
       framework: signature?.framework ?? "node",
+      language: "javascript",
       path: applicationPath,
       confidence: "high",
       evidence: [{
@@ -286,6 +303,63 @@ function detectApplications(
   }
 
   return applications;
+}
+
+async function detectNonNodeApplications(root: string): Promise<DetectedApplication[]> {
+  const files = await findLanguageFiles(root);
+  const applications: DetectedApplication[] = [];
+  for (const file of files) {
+    const name = basename(file);
+    const directory = dirname(file);
+    const path = toProjectPath(root, directory);
+    const source = await readFile(file, "utf8");
+    let language: string | undefined;
+    let framework: string | undefined;
+    let commands: DetectedApplication["commands"];
+    if (name === "pyproject.toml" || name === "requirements.txt" || name === "manage.py") {
+      language = "python"; framework = /django/i.test(source) || name === "manage.py" ? "django" : /fastapi/i.test(source) ? "fastapi" : undefined;
+      if (framework === "django") commands = { dev: "python manage.py runserver", test: "python manage.py test" };
+    } else if (name === "go.mod") {
+      language = "go"; framework = source.includes("github.com/gin-gonic/gin") ? "gin" : "go-http";
+      commands = { dev: "go run .", build: "go build ./...", test: "go test ./..." };
+    } else if (name === "composer.json") {
+      language = "php"; framework = source.includes("laravel/framework") ? "laravel" : undefined;
+      if (framework) commands = { dev: "php artisan serve", test: "php artisan test" };
+    } else if (name === "Cargo.toml") {
+      language = "rust"; framework = /\baxum\b/.test(source) ? "axum" : undefined;
+      if (framework) commands = { dev: "cargo run", build: "cargo build", test: "cargo test" };
+    } else if (name === "pom.xml" || name.startsWith("build.gradle")) {
+      const kotlin = name.endsWith(".kts") || source.includes("kotlin(");
+      language = kotlin ? "kotlin" : "java"; framework = /spring-boot|org\.springframework\.boot/.test(source) ? "spring-boot" : undefined;
+      if (framework) commands = name === "pom.xml" ? { dev: "mvn spring-boot:run", build: "mvn package", test: "mvn test" } : { dev: "gradle bootRun", build: "gradle build", test: "gradle test" };
+    } else if (/\.(cs|fs)proj$/.test(name)) {
+      language = "dotnet"; framework = /Microsoft\.NET\.Sdk\.Web/.test(source) ? "aspnet-core" : undefined;
+      if (framework) commands = { dev: "dotnet run", build: "dotnet build", test: "dotnet test" };
+    }
+    if (!language || !framework) continue;
+    applications.push({ name: sanitizeIdentifier(path === "." ? basename(root) : basename(directory)), type: "api", framework, language, path, confidence: "high", evidence: [{ source: toProjectPath(root, file), detail: `${language} ${framework} signature` }], ...(commands ? { commands } : {}) });
+  }
+  return deduplicateApplications(applications);
+}
+
+async function findLanguageFiles(root: string): Promise<string[]> {
+  const names = new Set(["pyproject.toml", "requirements.txt", "manage.py", "go.mod", "composer.json", "Cargo.toml", "pom.xml", "build.gradle", "build.gradle.kts"]);
+  const results: string[] = [];
+  async function visit(directory: string, depth: number): Promise<void> {
+    if (depth > 6) return;
+    let entries; try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (entry.isFile() && (names.has(entry.name) || /\.(cs|fs)proj$/.test(entry.name))) results.push(join(directory, entry.name));
+      else if (entry.isDirectory() && !ignoredDirectories.has(entry.name)) await visit(join(directory, entry.name), depth + 1);
+    }
+  }
+  await visit(root, 0); return results.sort();
+}
+
+function deduplicateApplications(applications: DetectedApplication[]): DetectedApplication[] {
+  const selected = new Map<string, DetectedApplication>();
+  for (const app of applications) if (!selected.has(app.path) || app.framework !== "django") selected.set(app.path, app);
+  return [...selected.values()];
 }
 
 function detectedCommands(

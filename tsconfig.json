@@ -11,6 +11,7 @@
     { "path": "./packages/runtime" },
     { "path": "./packages/environment" },
     { "path": "./packages/database" },
+    { "path": "./packages/api-docs" },
     { "path": "./packages/executor" },
     { "path": "./packages/diagnostics" },
     { "path": "./apps/cli" }

@@ -1,0 +1,16 @@
+{
+  "operations": [
+    {
+      "type": "createCollection",
+      "collection": "events"
+    },
+    {
+      "type": "createIndex",
+      "collection": "events",
+      "name": "event_created_at",
+      "keys": {
+        "createdAt": -1
+      }
+    }
+  ]
+}
