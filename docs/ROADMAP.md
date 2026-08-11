@@ -83,7 +83,9 @@ automatic project linking and preview health verification remain pending.
 The provider-neutral deployment registry now describes Railway, AWS, Azure,
 DigitalOcean, and shared-hosting modes, affordability profiles, credential-name
 contracts, workload compatibility, and per-capability status. These entries are
-discovery contracts; only Vercel preview configuration is implemented at this stage.
+configuration contracts. Native configuration generation is implemented for every
+listed mode; remote deployment, health verification, and rollback executors remain
+part of the production milestone.
 Read-only remote audits detect missing environments, secret-name drift, deployment
 branch policy drift, and absent production reviewer rules.
 Environment secret synchronization is name-only during planning and streams values

@@ -19,8 +19,19 @@ applications:
       test: pnpm test
 
 environments:
-  local:
+  dev:
     runtime: local-process
+    variableSources:
+      default: env-file
+  staging:
+    runtime: github-actions
+    variableSources:
+      default: github-environment
+  production:
+    runtime: github-actions
+    production: true
+    variableSources:
+      default: github-environment
 
 policies:
   requirePlan: true

@@ -2,50 +2,51 @@ import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { ApplicationManifest, DeploymentCompatibility, DeploymentConfigurationPlan, DeploymentProviderKind, DeploymentProviderMetadata, DeploymentWorkload, VibecoreManifest } from "@vibecore/contracts";
 import { digestValue } from "@vibecore/planner";
+export * from "./adapters.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
 const deploymentProviders: DeploymentProviderMetadata[] = [
   {
     id: "vercel", displayName: "Vercel", kind: "managed-platform", costProfiles: ["free-tier", "usage-based"], credentialNames: [],
-    modes: [{ id: "git-web", displayName: "Git-connected web application", workloads: ["static", "node"], source: "git", preview: "implemented", deploy: "planned", rollback: "planned", notes: ["Repository connection and environment values are completed in Vercel; Vibecore never places a token in generated workflows."] }],
+    modes: [{ id: "git-web", displayName: "Git-connected web application", workloads: ["static", "node"], source: "git", configure: "implemented", preview: "implemented", deploy: "planned", rollback: "planned", notes: ["Repository connection and environment values are completed in Vercel; Vibecore never places a token in generated workflows."] }],
     notes: ["Vibecore currently generates exact-approved preview configuration for supported web frameworks."],
   },
   {
     id: "railway", displayName: "Railway", kind: "managed-platform", costProfiles: ["low-cost", "usage-based"], credentialNames: ["RAILWAY_TOKEN"],
     modes: [
-      { id: "git", displayName: "Git source with Railpack", workloads: ["node", "python", "go", "php", "rust", "jvm", "dotnet"], source: "git", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Railway builds linked repositories and discovers a start command."] },
-      { id: "dockerfile", displayName: "Dockerfile", workloads: ["container"], source: "container-image", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Use this mode when runtime detection is insufficient or reproducible container builds are required."] },
+      { id: "git", displayName: "Git source with Railpack", workloads: ["node", "python", "go", "php", "rust", "jvm", "dotnet"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Railway builds linked repositories and discovers a start command."] },
+      { id: "dockerfile", displayName: "Dockerfile", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Use this mode when runtime detection is insufficient or reproducible container builds are required."] },
     ], notes: ["Credential values remain external secret references."],
   },
   {
     id: "aws", displayName: "Amazon Web Services", kind: "cloud", costProfiles: ["free-tier", "usage-based", "infrastructure"], credentialNames: ["AWS_ROLE_ARN", "AWS_REGION"],
     modes: [
-      { id: "s3-cloudfront", displayName: "S3 and CloudFront static site", workloads: ["static"], source: "artifact", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Designed for static build artifacts only."] },
-      { id: "app-runner", displayName: "App Runner service", workloads: ["container"], source: "container-image", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Deploys a web service from a container image."] },
-      { id: "ecs-fargate", displayName: "ECS on Fargate", workloads: ["container"], source: "container-image", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Intended for teams that need more infrastructure control."] },
+      { id: "s3-cloudfront", displayName: "S3 and CloudFront static site", workloads: ["static"], source: "artifact", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Designed for static build artifacts only."] },
+      { id: "app-runner", displayName: "App Runner service", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Deploys a web service from a container image."] },
+      { id: "ecs-fargate", displayName: "ECS on Fargate", workloads: ["container"], source: "container-image", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Intended for teams that need more infrastructure control."] },
     ], notes: ["GitHub Actions integrations should use OIDC role federation instead of long-lived access keys."],
   },
   {
     id: "azure", displayName: "Microsoft Azure", kind: "cloud", costProfiles: ["free-tier", "usage-based", "infrastructure"], credentialNames: ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"],
     modes: [
-      { id: "static-web-apps", displayName: "Static Web Apps", workloads: ["static"], source: "git", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Best fit for static frontends and supported managed API integrations."] },
-      { id: "app-service", displayName: "App Service", workloads: ["node", "python", "php", "jvm", "dotnet", "container"], source: "git", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Supports managed language runtimes and custom containers."] },
-      { id: "container-apps", displayName: "Container Apps", workloads: ["container"], source: "container-image", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed container target for APIs, web services, and workers."] },
+      { id: "static-web-apps", displayName: "Static Web Apps", workloads: ["static"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Best fit for static frontends and supported managed API integrations."] },
+      { id: "app-service", displayName: "App Service", workloads: ["node", "python", "php", "jvm", "dotnet", "container"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Supports managed language runtimes and custom containers."] },
+      { id: "container-apps", displayName: "Container Apps", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed container target for APIs, web services, and workers."] },
     ], notes: ["GitHub Actions integrations should use Azure workload identity federation instead of client secrets."],
   },
   {
     id: "digitalocean", displayName: "DigitalOcean", kind: "cloud", costProfiles: ["low-cost", "usage-based", "infrastructure"], credentialNames: ["DIGITALOCEAN_ACCESS_TOKEN"],
     modes: [
-      { id: "app-platform", displayName: "App Platform", workloads: ["static", "node", "python", "go", "php", "container"], source: "git", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed source or container deployment."] },
-      { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Lower-level server deployment; patching and hardening remain the operator's responsibility."] },
+      { id: "app-platform", displayName: "App Platform", workloads: ["static", "node", "python", "go", "php", "container"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed source or container deployment."] },
+      { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Lower-level server deployment; patching and hardening remain the operator's responsibility."] },
     ], notes: ["Droplet support will require SSH host-key verification and non-root deployment users."],
   },
   {
     id: "shared-hosting", displayName: "Shared hosting", kind: "shared-hosting", costProfiles: ["low-cost"], credentialNames: ["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_SSH_PRIVATE_KEY", "DEPLOY_PATH"],
     modes: [
-      { id: "static-sftp", displayName: "Static site over SFTP", workloads: ["static"], source: "ssh-sftp", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Uploads a versioned static artifact over encrypted SSH transport."] },
-      { id: "php-sftp", displayName: "PHP application over SFTP", workloads: ["php"], source: "ssh-sftp", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Targets hosts with a declared PHP runtime and an application-scoped deployment path."] },
+      { id: "static-sftp", displayName: "Static site over SFTP", workloads: ["static"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Uploads a versioned static artifact over encrypted SSH transport."] },
+      { id: "php-sftp", displayName: "PHP application over SFTP", workloads: ["php"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Targets hosts with a declared PHP runtime and an application-scoped deployment path."] },
     ], notes: ["Plain FTP and password arguments are intentionally unsupported; credentials must be secret references."],
   },
 ];

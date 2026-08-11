@@ -288,6 +288,7 @@ export interface DeploymentModeMetadata {
   displayName: string;
   workloads: DeploymentWorkload[];
   source: "git" | "container-image" | "artifact" | "ssh-sftp";
+  configure: DeploymentCapabilityStatus;
   preview: DeploymentCapabilityStatus;
   deploy: DeploymentCapabilityStatus;
   rollback: DeploymentCapabilityStatus;

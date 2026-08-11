@@ -196,11 +196,11 @@ pnpm vibe deploy support --application web --json
   </thead>
   <tbody>
     <tr><td>Vercel</td><td>Git-connected static and Node web apps</td><td>Free tier, usage based</td><td>Preview configuration implemented</td></tr>
-    <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Adapter planned</td></tr>
-    <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Adapters planned</td></tr>
-    <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>Adapters planned</td></tr>
-    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>Adapters planned</td></tr>
-    <tr><td>Shared hosting</td><td>Static or PHP artifact over SFTP</td><td>Low cost</td><td>Adapter planned</td></tr>
+    <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Configuration implemented</td></tr>
+    <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Configuration implemented</td></tr>
+    <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>Configuration implemented</td></tr>
+    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>Configuration implemented</td></tr>
+    <tr><td>Shared hosting</td><td>Static or PHP artifact over SFTP</td><td>Low cost</td><td>Configuration implemented</td></tr>
   </tbody>
 </table>
 
@@ -216,6 +216,9 @@ deliberately narrower compatibility path for developers with existing inexpensiv
 hosting: versioned static builds and PHP applications can use SSH/SFTP, while plain
 FTP, passwords in command arguments, root SSH deployment, and secret values in plans
 are outside the security model.
+
+See [deployment adapters](docs/DEPLOYMENTS.md) for every mode, generated artifact,
+account prerequisite, identity boundary, health contract, and rollback strategy.
 
 Synchronize declared secret values one environment at a time:
 
