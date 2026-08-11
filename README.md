@@ -73,3 +73,75 @@ a repository-specific project name and waits for resource readiness before start
 applications. Shutdown removes only that Compose project and preserves named volumes.
 Required environment variables are validated first, and declared secret values are
 redacted from application and Docker output.
+
+Prisma projects can inspect migration history without connecting to or changing a
+database:
+
+```sh
+pnpm vibe db inspect
+pnpm vibe db inspect --json
+```
+
+The inspection records SHA-256 checksums and conservatively classifies each SQL
+statement as `safe`, `review`, or `destructive`. A destructive result exits with code
+2 so it can be enforced in CI. Live checks remain read-only and use the project's
+installed Prisma CLI:
+
+```sh
+pnpm vibe db check validate
+pnpm vibe db check status
+pnpm vibe db check drift
+```
+
+`status` compares local migration history with Prisma's migration table. `drift`
+compares the configured live datasource with the schema and exits with code 2 when
+changes are detected. Database credentials are never accepted as command arguments,
+and known secret environment values are redacted from captured output.
+
+## Database adapter model
+
+Database support is split into independent layers so an engine is not confused with
+an ORM or a hosting company:
+
+<table>
+  <thead>
+    <tr style="background-color:#1f2937;color:#ffffff">
+      <th>Layer</th>
+      <th>Registered adapters</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Engines</td><td>PostgreSQL, MySQL, MariaDB, MongoDB, Redis, SQLite, SQL Server, CockroachDB</td><td>Storage behavior and local runtime</td></tr>
+    <tr><td>Tools</td><td>Prisma, Drizzle, TypeORM, MikroORM, Mongoose</td><td>Schema, validation, and migrations</td></tr>
+    <tr><td>Providers</td><td>Supabase, Neon, MongoDB Atlas, PlanetScale, Upstash, Railway</td><td>Hosted provisioning and operational APIs</td></tr>
+  </tbody>
+</table>
+
+Inspect the live capability registry with:
+
+```sh
+pnpm vibe db support
+pnpm vibe db support --kind provider
+pnpm vibe db support --json
+```
+
+The registry distinguishes `implemented`, `planned`, and `unsupported` capabilities.
+Supabase and Neon are registered PostgreSQL provider adapters. Their detection is
+implemented; authenticated provisioning, branching, backup verification, and
+deployment operations remain explicitly marked as planned.
+
+Validate a selected stack and its environment contract without connecting to or
+modifying the provider:
+
+```sh
+pnpm vibe db doctor --engine postgresql --tool prisma --provider supabase
+pnpm vibe db doctor --engine postgresql --tool drizzle --provider neon
+pnpm vibe db doctor --engine mongodb --tool mongoose --provider mongodb-atlas
+pnpm vibe db doctor --engine redis --provider upstash
+```
+
+Diagnostics cover every registered hosted provider, check compatible engine/tool/
+provider combinations, validate required variable presence and URL shape, and detect
+incomplete control-plane credential pairs. Values are used only for validation and
+never included in human output, JSON output, plans, or state.

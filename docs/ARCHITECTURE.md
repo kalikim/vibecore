@@ -100,6 +100,22 @@ or remote state before material changes.
 Resolves adapters by ID and capability. V1 adapters are bundled and trusted. A
 future plugin host will isolate community adapters.
 
+Database adapters use three composable layers:
+
+- an engine adapter owns storage semantics and local runtime behavior;
+- a tooling adapter owns schema, validation, and migration behavior;
+- a provider adapter owns hosted provisioning, branching, backup, and connection metadata.
+
+For example, Neon resolves as `postgresql + prisma|drizzle + neon`; Supabase resolves
+as `postgresql + prisma|drizzle + supabase`. Capability support is declared as
+`implemented`, `planned`, or `unsupported`, preventing detection from being mistaken
+for permission to provision or deploy.
+
+Provider configuration diagnostics are provider-neutral and read-only. Each provider
+declares required connection-variable groups, optional control-plane credential
+pairs, supported engines, and safe URL-shape checks. Diagnostic evidence may contain
+variable names and the phrase `value redacted`, but never values.
+
 ## 3. Adapter contract
 
 ```ts
@@ -246,4 +262,3 @@ implementation internals.
 The manifest has an API version independent of CLI package versions. Adapters also
 declare an adapter API version. Breaking manifest changes require conversion tooling
 and a new API version; deprecated fields receive at least one supported migration path.
-

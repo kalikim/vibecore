@@ -9,6 +9,7 @@
   "dependencies": {
     "@vibecore/config": "workspace:*",
     "@vibecore/contracts": "workspace:*",
+    "@vibecore/database": "workspace:*",
     "@vibecore/diagnostics": "workspace:*",
     "@vibecore/discovery": "workspace:*",
     "@vibecore/executor": "workspace:*",

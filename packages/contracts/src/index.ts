@@ -229,3 +229,80 @@ export interface Release {
   status: "deploying" | "healthy" | "unhealthy" | "rolled-back" | "failed";
   createdAt: string;
 }
+
+export type DatabaseMigrationRisk = "safe" | "review" | "destructive";
+
+export interface DatabaseMigrationFinding {
+  risk: DatabaseMigrationRisk;
+  code: string;
+  message: string;
+  statement: string;
+}
+
+export interface DatabaseMigrationInspection {
+  name: string;
+  path: string;
+  checksum: string;
+  risk: DatabaseMigrationRisk;
+  findings: DatabaseMigrationFinding[];
+}
+
+export interface PrismaDatabaseInspection {
+  schemaPath: string;
+  datasource: string;
+  provider: string;
+  urlEnvironmentVariable?: string;
+  migrationsPath: string;
+  migrations: DatabaseMigrationInspection[];
+  risk: DatabaseMigrationRisk;
+  diagnostics: Diagnostic[];
+}
+
+export interface PrismaLiveCheck {
+  command: "validate" | "status" | "drift";
+  status: "in-sync" | "changes-detected" | "failed";
+  exitCode: number;
+  output: string;
+}
+
+export type DatabaseAdapterKind = "engine" | "tool" | "provider";
+export type DatabaseCapability =
+  | "detect"
+  | "inspect"
+  | "validate"
+  | "local-runtime"
+  | "provision"
+  | "deploy-migrations"
+  | "backup"
+  | "branching";
+export type CapabilitySupport = "implemented" | "planned" | "unsupported";
+
+export interface DatabaseAdapterCapability {
+  capability: DatabaseCapability;
+  support: CapabilitySupport;
+  note: string;
+}
+
+export interface DatabaseAdapterMetadata {
+  id: string;
+  displayName: string;
+  kind: DatabaseAdapterKind;
+  engines: string[];
+  capabilities: DatabaseAdapterCapability[];
+  environmentVariables?: string[];
+  documentationUrl?: string;
+}
+
+export interface DetectedDatabaseIntegration {
+  adapterId: string;
+  kind: DatabaseAdapterKind;
+  confidence: DetectionConfidence;
+  evidence: DetectionEvidence[];
+}
+
+export interface DatabaseStackDiagnosticResult {
+  engine: string;
+  tool?: string;
+  provider?: string;
+  diagnostics: Diagnostic[];
+}

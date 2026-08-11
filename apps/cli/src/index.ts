@@ -10,6 +10,8 @@ import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { startDevSession } from "@vibecore/runtime";
+import { diagnoseDatabaseStack, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
+import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
 const program = new Command()
   .name("vibe")
@@ -191,6 +193,103 @@ program
     }
   });
 
+const database = program.command("db").description("Inspect Prisma schema and migration safety without modifying a database");
+
+database
+  .command("support")
+  .description("Show database engine, tooling, and hosted-provider adapter capabilities")
+  .option("-k, --kind <kind>", "engine, tool, or provider")
+  .option("--json", "print machine-readable JSON")
+  .action((options: { kind?: string; json?: boolean }) => {
+    if (options.kind && options.kind !== "engine" && options.kind !== "tool" && options.kind !== "provider") {
+      printDatabaseError(new Error(`Unknown adapter kind ${JSON.stringify(options.kind)}; expected engine, tool, or provider`), options.json ?? false);
+      return;
+    }
+    const adapters = listDatabaseAdapters(options.kind as DatabaseAdapterKind | undefined);
+    if (options.json) {
+      printJson({ adapters });
+      return;
+    }
+    for (const adapter of adapters) {
+      console.log(`\n${adapter.displayName} (${adapter.kind}:${adapter.id})`);
+      console.log(`  Engines: ${adapter.engines.join(", ")}`);
+      for (const capability of adapter.capabilities.filter(({ support }) => support !== "unsupported")) {
+        console.log(`  ${supportSymbol(capability.support)} ${capability.capability.padEnd(20)} ${capability.support}`);
+      }
+    }
+  });
+
+database
+  .command("doctor")
+  .description("Validate a database engine, schema tool, and hosted-provider configuration")
+  .requiredOption("--engine <engine>", "database engine, such as postgresql, mongodb, or redis")
+  .option("--tool <tool>", "schema tool, such as prisma, drizzle, or mongoose")
+  .option("--provider <provider>", "hosted provider, such as supabase, neon, or mongodb-atlas")
+  .option("--json", "print machine-readable JSON")
+  .action((options: { engine: string; tool?: string; provider?: string; json?: boolean }) => {
+    const result = diagnoseDatabaseStack(options.engine, options.tool, options.provider, process.env);
+    if (options.json) printJson(result);
+    else printDiagnostics(result.diagnostics, false);
+    process.exitCode = hasDiagnosticErrors(result.diagnostics) ? 1 : 0;
+  });
+
+database
+  .command("inspect")
+  .description("Inspect local Prisma migration files and classify their risk")
+  .option("-s, --schema <path>", "Prisma schema path", "prisma/schema.prisma")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { schema: string; json?: boolean }) => {
+    try {
+      const inspection = await inspectPrismaDatabase(process.cwd(), options.schema);
+      if (options.json) {
+        printJson(inspection);
+        return;
+      }
+      console.log(`Prisma ${inspection.provider} datasource: ${inspection.datasource}`);
+      console.log(`Schema: ${inspection.schemaPath}`);
+      console.log(`Connection variable: ${inspection.urlEnvironmentVariable ?? "not declared through env(...)"}`);
+      console.log(`Overall migration risk: ${inspection.risk}`);
+      if (inspection.migrations.length === 0) console.log("No migration files found");
+      for (const migration of inspection.migrations) {
+        console.log(`${riskSymbol(migration.risk)} ${migration.name}  ${migration.risk}`);
+        for (const finding of migration.findings.filter((item) => item.risk !== "safe")) {
+          console.log(`  ${finding.code}: ${finding.message}`);
+        }
+      }
+      if (inspection.diagnostics.length > 0) printDiagnostics(inspection.diagnostics, false);
+      process.exitCode = inspection.risk === "destructive" ? 2 : 0;
+    } catch (error) {
+      printDatabaseError(error, options.json ?? false);
+    }
+  });
+
+database
+  .command("check")
+  .description("Run read-only Prisma validation, migration status, or drift checks")
+  .argument("<check>", "validate, status, or drift")
+  .option("-s, --schema <path>", "Prisma schema path", "prisma/schema.prisma")
+  .option("--json", "print machine-readable JSON")
+  .action(async (check: string, options: { schema: string; json?: boolean }) => {
+    try {
+      if (check !== "validate" && check !== "status" && check !== "drift") {
+        throw new Error(`Unknown database check ${JSON.stringify(check)}; expected validate, status, or drift`);
+      }
+      const inspection = await inspectPrismaDatabase(process.cwd(), options.schema);
+      if (inspection.provider === "mongodb" && check !== "validate") {
+        throw new Error("Prisma migration status and drift checks do not support MongoDB");
+      }
+      const result = await runPrismaLiveCheck(process.cwd(), inspection.schemaPath, check);
+      if (options.json) printJson(result);
+      else {
+        console.log(`${result.status === "in-sync" ? "✓" : "!"} Prisma ${check}: ${result.status}`);
+        if (result.output) console.log(result.output);
+      }
+      process.exitCode = result.exitCode;
+    } catch (error) {
+      printDatabaseError(error, options.json ?? false);
+    }
+  });
+
 await program.parseAsync();
 
 function toDiagnostic(error: unknown, manifestPath: string): Diagnostic {
@@ -239,4 +338,25 @@ function statusSymbol(status: string): string {
   if (status === "succeeded") return "✓";
   if (status === "failed") return "✗";
   return "•";
+}
+
+function riskSymbol(risk: string): string {
+  if (risk === "safe") return "✓";
+  if (risk === "destructive") return "✗";
+  return "!";
+}
+
+function supportSymbol(support: string): string {
+  return support === "implemented" ? "✓" : "○";
+}
+
+function printDatabaseError(error: unknown, json: boolean): void {
+  const message = error instanceof Error ? error.message : String(error);
+  printDiagnostics([{
+    code: "database.inspection_failed",
+    severity: "error",
+    component: "database",
+    message,
+  }], json);
+  process.exitCode = 1;
 }

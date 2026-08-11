@@ -26,6 +26,9 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@vibecore/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@vibecore/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
@@ -64,6 +67,12 @@ importers:
         version: 2.9.0
 
   packages/contracts: {}
+
+  packages/database:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/diagnostics:
     dependencies:

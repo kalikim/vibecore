@@ -7,6 +7,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     { "path": "../../packages/contracts" },
+    { "path": "../../packages/database" },
     { "path": "../../packages/config" },
     { "path": "../../packages/discovery" },
     { "path": "../../packages/planner" },

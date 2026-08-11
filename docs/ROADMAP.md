@@ -42,8 +42,12 @@ Exit gate:
 
 Status: Started with project graph, immutable plans, policy evaluation, local state,
 the guarded adoption executor, local process supervision, environment contracts,
-and project-scoped Docker Compose lifecycle management. Migration orchestration and
-additional resource adapters remain pending.
+project-scoped Docker Compose lifecycle management, and read-only Prisma migration
+inspection. The database registry now separates engine, tooling, and hosted-provider
+capabilities, including Supabase and Neon adapter definitions. Migration execution
+and authenticated provider operations remain pending. Read-only environment and
+compatibility diagnostics cover Supabase, Neon, MongoDB Atlas, PlanetScale, Upstash,
+and Railway.
 
 Deliverables:
 
