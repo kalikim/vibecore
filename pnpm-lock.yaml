@@ -32,6 +32,9 @@ importers:
       '@vibecore/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@vibecore/deployment':
+        specifier: workspace:*
+        version: link:../../packages/deployment
       '@vibecore/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
@@ -91,6 +94,15 @@ importers:
       yaml:
         specifier: ^2.8.0
         version: 2.9.0
+
+  packages/deployment:
+    dependencies:
+      '@vibecore/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@vibecore/planner':
+        specifier: workspace:*
+        version: link:../planner
 
   packages/diagnostics:
     dependencies:

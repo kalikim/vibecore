@@ -13,6 +13,7 @@
     { "path": "./packages/database" },
     { "path": "./packages/api-docs" },
     { "path": "./packages/github" },
+    { "path": "./packages/deployment" },
     { "path": "./packages/executor" },
     { "path": "./packages/diagnostics" },
     { "path": "./apps/cli" }

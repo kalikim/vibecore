@@ -76,8 +76,14 @@ Exit gate:
 Status: Started with deterministic GitHub Actions and Dependabot generation,
 least-privilege permissions, exact-digest approval, and standardized `dev`, `staging`,
 and `production` environment gates. Exact-approved remote GitHub environment creation
-is implemented through the versioned API; secret upload, reviewer selection, and
-preview deployment adapters remain pending.
+is implemented through the versioned API; reviewer selection and additional preview
+providers remain pending.
+Vercel Git-connected preview configuration is now plan-first and exact-approved;
+automatic project linking and preview health verification remain pending.
+The provider-neutral deployment registry now describes Railway, AWS, Azure,
+DigitalOcean, and shared-hosting modes, affordability profiles, credential-name
+contracts, workload compatibility, and per-capability status. These entries are
+discovery contracts; only Vercel preview configuration is implemented at this stage.
 Read-only remote audits detect missing environments, secret-name drift, deployment
 branch policy drift, and absent production reviewer rules.
 Environment secret synchronization is name-only during planning and streams values
@@ -89,6 +95,8 @@ Deliverables:
 - GitHub repository and Actions plan generation;
 - environment-variable contract validation;
 - Vercel preview adapter;
+- provider registry and workload compatibility for managed cloud, infrastructure,
+  and low-cost shared-hosting targets;
 - immutable plan artifacts and approval workflow.
 
 Exit gate:
@@ -102,6 +110,11 @@ Exit gate:
 Deliverables:
 
 - self-hosted Docker deployment adapter;
+- exact-approved Railway Git and Dockerfile deployment adapters;
+- AWS S3 and CloudFront plus App Runner deployment adapters using GitHub OIDC;
+- Azure Static Web Apps, App Service, and Container Apps adapters using workload identity;
+- DigitalOcean App Platform and hardened Droplet adapters;
+- versioned static and PHP shared-hosting releases over SSH/SFTP;
 - release ledger and runtime health verification;
 - Prisma schema risk classifier;
 - database backup hooks;

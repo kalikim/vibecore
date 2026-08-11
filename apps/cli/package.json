@@ -13,6 +13,7 @@
     "@vibecore/database": "workspace:*",
     "@vibecore/diagnostics": "workspace:*",
     "@vibecore/discovery": "workspace:*",
+    "@vibecore/deployment": "workspace:*",
     "@vibecore/executor": "workspace:*",
     "@vibecore/github": "workspace:*",
     "@vibecore/planner": "workspace:*",

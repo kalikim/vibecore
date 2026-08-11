@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../packages/api-docs" },
     { "path": "../../packages/github" },
+    { "path": "../../packages/deployment" },
     { "path": "../../packages/contracts" },
     { "path": "../../packages/database" },
     { "path": "../../packages/config" },

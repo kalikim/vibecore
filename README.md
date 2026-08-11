@@ -168,6 +168,55 @@ The audit compares standard environments, required secret names, protected deplo
 branches, unexpected legacy secrets, and production reviewer rules. GitHub's secret
 API returns names and timestamps only; Vibecore never requests decrypted values.
 
+Configure a Git-connected Vercel preview without putting tokens in Actions commands:
+
+```sh
+pnpm vibe deploy setup --provider vercel --application web --revision <git-sha>
+pnpm vibe deploy setup --provider vercel --application web --revision <git-sha> --write
+pnpm vibe deploy setup --provider vercel --application web --revision <git-sha> --write --approve <digest>
+```
+
+The plan creates `vercel.json`, binds configuration review to an immutable source
+revision, reports required secret names only, and refuses overwrites. Connect the
+repository in Vercel and map `staging` to Preview; Vercel will then create preview
+deployments from branches and pull requests without a CLI token in GitHub Actions.
+
+Discover every deployment target and its honest implementation status:
+
+```sh
+pnpm vibe deploy support
+pnpm vibe deploy support --provider railway
+pnpm vibe deploy support --application web
+pnpm vibe deploy support --application web --json
+```
+
+<table>
+  <thead style="background-color: #111827; color: #f9fafb;">
+    <tr><th>Provider</th><th>Deployment modes</th><th>Resource profile</th><th>Current status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Vercel</td><td>Git-connected static and Node web apps</td><td>Free tier, usage based</td><td>Preview configuration implemented</td></tr>
+    <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Adapter planned</td></tr>
+    <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Adapters planned</td></tr>
+    <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>Adapters planned</td></tr>
+    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>Adapters planned</td></tr>
+    <tr><td>Shared hosting</td><td>Static or PHP artifact over SFTP</td><td>Low cost</td><td>Adapter planned</td></tr>
+  </tbody>
+</table>
+
+Support is capability based, not a provider-name promise. `vibe deploy support`
+reports the accepted workloads and whether preview, deploy, and rollback are
+implemented, planned, or unsupported for each mode. A manifest can explicitly set
+`applications.<name>.config.deploymentWorkload: container` when its Dockerfile is the
+deployment boundary. Expo/mobile releases remain on their separate EAS and app-store
+path.
+
+Cloud workflows will prefer short-lived GitHub OIDC identities. Shared hosting is a
+deliberately narrower compatibility path for developers with existing inexpensive
+hosting: versioned static builds and PHP applications can use SSH/SFTP, while plain
+FTP, passwords in command arguments, root SSH deployment, and secret values in plans
+are outside the security model.
+
 Synchronize declared secret values one environment at a time:
 
 ```sh

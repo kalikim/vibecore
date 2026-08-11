@@ -267,6 +267,53 @@ export interface Release {
   createdAt: string;
 }
 
+export interface DeploymentConfigurationPlan {
+  provider: string;
+  application: string;
+  environment: string;
+  sourceRevision: string;
+  digest: string;
+  files: Array<{ path: string; content: string }>;
+  requiredSecretNames: string[];
+  notes: string[];
+}
+
+export type DeploymentProviderKind = "managed-platform" | "cloud" | "server" | "shared-hosting";
+export type DeploymentWorkload = "static" | "node" | "python" | "go" | "php" | "rust" | "jvm" | "dotnet" | "container";
+export type DeploymentCapabilityStatus = "implemented" | "planned" | "unsupported";
+export type DeploymentCostProfile = "free-tier" | "low-cost" | "usage-based" | "infrastructure";
+
+export interface DeploymentModeMetadata {
+  id: string;
+  displayName: string;
+  workloads: DeploymentWorkload[];
+  source: "git" | "container-image" | "artifact" | "ssh-sftp";
+  preview: DeploymentCapabilityStatus;
+  deploy: DeploymentCapabilityStatus;
+  rollback: DeploymentCapabilityStatus;
+  notes: string[];
+}
+
+export interface DeploymentProviderMetadata {
+  id: string;
+  displayName: string;
+  kind: DeploymentProviderKind;
+  costProfiles: DeploymentCostProfile[];
+  credentialNames: string[];
+  modes: DeploymentModeMetadata[];
+  notes: string[];
+}
+
+export interface DeploymentCompatibility {
+  provider: string;
+  mode: string;
+  application: string;
+  workload?: DeploymentWorkload;
+  compatible: boolean;
+  status: DeploymentCapabilityStatus;
+  reasons: string[];
+}
+
 export type DatabaseMigrationRisk = "safe" | "review" | "destructive";
 
 export interface DatabaseMigrationFinding {

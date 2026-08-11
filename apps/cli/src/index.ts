@@ -11,6 +11,7 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
+import { applyDeploymentConfigurationPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, getDeploymentProvider, listDeploymentProviders } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
@@ -271,6 +272,53 @@ program
       }], false);
       process.exitCode = 1;
     }
+  });
+
+const deploy = program.command("deploy").description("Plan provider deployment configuration");
+
+deploy.command("support")
+  .description("Show deployment providers, modes, affordability profiles, and implementation status")
+  .option("--provider <provider>", "filter by provider")
+  .option("--application <name>", "evaluate an application from the manifest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { provider?: string; application?: string; manifest: string; json?: boolean }) => {
+    try {
+      const providers = options.provider ? [getDeploymentProvider(options.provider)].filter((provider) => provider !== undefined) : listDeploymentProviders();
+      if (options.provider && providers.length === 0) throw new Error(`Unsupported deployment provider: ${options.provider}`);
+      const manifest = options.application ? await loadManifest(resolve(process.cwd(), options.manifest)) : undefined;
+      const compatibility = manifest && options.application ? providers.flatMap((provider) => provider.modes.map((mode) => evaluateDeploymentCompatibility(manifest, options.application!, provider.id, mode.id))) : [];
+      if (options.json) { printJson({ providers, compatibility }); return; }
+      for (const provider of providers) {
+        console.log(`${provider.displayName} (${provider.id}) · ${provider.kind} · ${provider.costProfiles.join(", ")}`);
+        for (const mode of provider.modes) {
+          const match = compatibility.find((candidate) => candidate.provider === provider.id && candidate.mode === mode.id);
+          const suffix = match ? ` · ${match.compatible ? `${match.status} for ${match.workload}` : `incompatible: ${match.reasons.join("; ")}`}` : "";
+          console.log(`  ${mode.id.padEnd(18)} deploy=${mode.deploy.padEnd(11)} ${mode.workloads.join(", ")}${suffix}`);
+        }
+      }
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "deployment.support_failed", severity: "error", component: "deployment", message }], options.json ?? false); process.exitCode = 1; }
+  });
+
+deploy.command("setup")
+  .description("Preview or write provider deployment configuration")
+  .requiredOption("--provider <provider>", "deployment provider; currently vercel")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--write", "write configuration after exact digest approval")
+  .option("--approve <digest>", "approve the exact configuration digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { provider: string; application: string; revision: string; manifest: string; write?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      if (options.provider !== "vercel") throw new Error(`Unsupported deployment provider: ${options.provider}`);
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createVercelPreviewPlan(manifest, options.application, options.revision);
+      if (!options.write) { if (options.json) printJson(plan); else { for (const file of plan.files) console.log(`--- ${file.path}\n${file.content}`); console.log(`Plan digest: ${plan.digest}`); for (const note of plan.notes) console.log(`• ${note}`); } return; }
+      if (!options.approve) { if (options.json) printJson(plan); else console.log(`Review the plan, then apply it with:\n  vibe deploy setup --provider vercel --application ${plan.application} --revision ${plan.sourceRevision} --write --approve ${plan.digest}`); process.exitCode = 2; return; }
+      const files = await applyDeploymentConfigurationPlan(process.cwd(), plan, options.approve);
+      if (options.json) printJson({ plan, files }); else for (const file of files) console.log(`✓ Created ${file}`);
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "deployment.setup_failed", severity: "error", component: "deployment", message }], options.json ?? false); process.exitCode = 1; }
   });
 
 const github = program.command("github").description("Plan secure GitHub repository automation");
