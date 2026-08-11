@@ -19,8 +19,47 @@ export interface Diagnostic {
   fix?: DiagnosticFix;
 }
 
+export type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
+export type ApplicationType = "web" | "api" | "mobile" | "worker";
+export type DetectionConfidence = "high" | "medium" | "low";
+
+export interface DetectionEvidence {
+  source: string;
+  detail: string;
+}
+
+export interface DetectedApplication {
+  name: string;
+  type: ApplicationType;
+  framework: string;
+  path: string;
+  confidence: DetectionConfidence;
+  evidence: DetectionEvidence[];
+}
+
+export interface DetectedResource {
+  name: string;
+  type: string;
+  provider: string;
+  confidence: DetectionConfidence;
+  evidence: DetectionEvidence[];
+  config?: Record<string, unknown>;
+}
+
+export interface RepositoryScan {
+  root: string;
+  packageManager?: {
+    name: PackageManager;
+    confidence: DetectionConfidence;
+    evidence: DetectionEvidence[];
+  };
+  applications: DetectedApplication[];
+  resources: DetectedResource[];
+  diagnostics: Diagnostic[];
+}
+
 export interface ApplicationManifest {
-  type: "web" | "api" | "mobile" | "worker";
+  type: ApplicationType;
   framework: string;
   path: string;
   dependsOn?: string[];
@@ -41,7 +80,7 @@ export interface VibecoreManifest {
   kind: "Application";
   metadata: { name: string; description?: string };
   workspace?: {
-    packageManager?: "pnpm" | "npm" | "yarn" | "bun";
+    packageManager?: PackageManager;
     root?: string;
   };
   applications: Record<string, ApplicationManifest>;

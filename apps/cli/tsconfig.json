@@ -8,6 +8,7 @@
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/config" },
+    { "path": "../../packages/discovery" },
     { "path": "../../packages/diagnostics" }
   ]
 }

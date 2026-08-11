@@ -21,6 +21,8 @@ Exit gate:
 
 ## Milestone 1 — Inspect and diagnose
 
+Status: In progress
+
 Deliverables:
 
 - pnpm monorepo and CLI shell;
@@ -110,4 +112,3 @@ Potential deliverables:
 
 This milestone begins only after adapter contracts have survived multiple internal
 implementations without provider-specific changes to the core.
-

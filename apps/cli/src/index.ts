@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { Command } from "commander";
+import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
 import type { Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
+import { createManifestProposal, scanRepository } from "@vibecore/discovery";
 
 const program = new Command()
   .name("vibe")
@@ -28,6 +30,31 @@ program
       printDiagnostics([diagnostic], options.json ?? false);
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("adopt")
+  .description("Inspect an existing repository and propose a Vibecore manifest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { json?: boolean }) => {
+    const scan = await scanRepository(process.cwd());
+    const manifest = scan.applications.length > 0 ? createManifestProposal(scan) : null;
+
+    if (options.json) {
+      process.stdout.write(`${JSON.stringify({ scan, manifest }, null, 2)}\n`);
+    } else if (!manifest) {
+      console.log("# Vibecore could not create an adoption proposal. No files were changed.\n");
+      printDiagnostics(scan.diagnostics, false);
+    } else {
+      console.log("# Read-only adoption proposal. No files were changed.\n");
+      process.stdout.write(stringify(manifest, { lineWidth: 100 }));
+      if (scan.diagnostics.length > 0) {
+        console.log("\n# Discovery diagnostics");
+        printDiagnostics(scan.diagnostics, false);
+      }
+    }
+
+    process.exitCode = hasDiagnosticErrors(scan.diagnostics) ? 1 : 0;
   });
 
 await program.parseAsync();

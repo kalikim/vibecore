@@ -10,6 +10,8 @@
     "@vibecore/config": "workspace:*",
     "@vibecore/contracts": "workspace:*",
     "@vibecore/diagnostics": "workspace:*",
-    "commander": "^14.0.0"
+    "@vibecore/discovery": "workspace:*",
+    "commander": "^14.0.0",
+    "yaml": "^2.8.0"
   }
 }

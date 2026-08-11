@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vibecore.dev/schemas/v1alpha1/vibecore.schema.json",
+  "$id": "https://vibecore.build/schemas/v1alpha1/vibecore.schema.json",
   "title": "Vibecore Application",
   "type": "object",
   "additionalProperties": false,
@@ -140,4 +140,3 @@
     }
   }
 }
-

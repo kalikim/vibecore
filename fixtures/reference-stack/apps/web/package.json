@@ -1,0 +1,8 @@
+{
+  "name": "@reference/web",
+  "private": true,
+  "dependencies": {
+    "next": "15.4.0",
+    "react": "19.1.0"
+  }
+}
