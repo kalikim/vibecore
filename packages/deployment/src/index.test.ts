@@ -11,9 +11,10 @@ describe("Vercel preview configuration", () => {
 });
 describe("deployment provider registry", () => {
   it("lists managed cloud and affordable hosting targets without claiming planned deployment is implemented", () => {
-    expect(listDeploymentProviders().map(({ id }) => id)).toEqual(["vercel", "railway", "aws", "azure", "digitalocean", "shared-hosting"]);
+    expect(listDeploymentProviders().map(({ id }) => id)).toEqual(["vercel", "railway", "aws", "azure", "digitalocean", "shared-hosting", "self-hosted"]);
     expect(getDeploymentProvider("do")?.id).toBe("digitalocean");
     expect(getDeploymentProvider("shared-hosting")?.modes.find(({ id }) => id === "static-sftp")?.deploy).toBe("planned");
+    expect(getDeploymentProvider("self-hosted")?.modes[0]).toMatchObject({ configure: "implemented", deploy: "implemented", rollback: "planned" });
   });
   it("matches applications to provider modes and keeps mobile releases separate", () => {
     expect(evaluateDeploymentCompatibility(manifest, "web", "azure", "app-service")).toMatchObject({ workload: "node", compatible: true, status: "planned" });

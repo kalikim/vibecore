@@ -109,6 +109,15 @@ Exit gate:
 
 ## Milestone 4 — Production and recovery
 
+Status: Started. The durable local release ledger, bounded HTTP health verification,
+and exact-digest rollback planning are implemented. Health records exclude response
+bodies and secrets, and rollback can only select a preceding healthy immutable
+release for the same application, provider, mode, and environment. Provider-specific
+remote execution is implemented for self-hosted Docker over strict SSH, including
+versioned Compose releases, digest-pinned images, external health gating, and
+exact-approved rollback. Managed-provider executors, backup hooks, and interrupted
+remote-deployment reconciliation remain pending.
+
 Deliverables:
 
 - self-hosted Docker deployment adapter;

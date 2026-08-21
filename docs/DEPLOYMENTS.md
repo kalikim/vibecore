@@ -26,6 +26,7 @@ the exact plan digest, and existing files are never overwritten.
     <tr><td>DigitalOcean</td><td><code>droplet</code></td><td>Hardened cloud-init baseline</td><td>Droplet, SSH key, pinned host key, firewall, and non-root user</td></tr>
     <tr><td>Shared hosting</td><td><code>static-sftp</code></td><td>Versioned SFTP release descriptor</td><td>SSH/SFTP, deployment directory, host key, and static build output</td></tr>
     <tr><td>Shared hosting</td><td><code>php-sftp</code></td><td>Versioned SFTP release descriptor</td><td>SSH/SFTP, compatible PHP runtime, deployment directory, and host key</td></tr>
+    <tr><td>Self-hosted</td><td><code>docker-compose</code></td><td>Versioned Compose release executed over SSH</td><td>Rootless Docker preferred, non-root SSH user, pinned host key, immutable image digest, and pre-provisioned environment file</td></tr>
   </tbody>
 </table>
 
@@ -98,3 +99,42 @@ health path within the configured timeout. Rollback always targets the preceding
 healthy immutable revision or image digest. Static AWS releases restore a versioned
 artifact and invalidate CloudFront. Shared hosting uses an atomic release symlink
 when supported and refuses a blind live-tree overwrite when it is not.
+
+The shared release lifecycle is implemented locally. `vibe deploy releases` reads
+the secret-free ledger, `vibe deploy verify-health` performs bounded HTTP checks
+without following redirects or storing response bodies, and `vibe deploy rollback`
+selects the preceding healthy immutable release and creates a tamper-evident plan.
+Managed-provider remote execution of that plan remains explicit and pending.
+
+## Self-hosted Docker execution
+
+Self-hosted Docker forward deployment and rollback execution are implemented. The
+server must already have Docker Compose, the deployment user, its authorized SSH
+key, and an environment file at:
+
+```text
+<remote-root>/environments/<environment>.env
+```
+
+Vibecore checks that file exists but never uploads, reads, prints, or stores it. It
+uploads only a versioned Compose file, pulls an image pinned with a SHA-256 digest,
+starts it with Compose's wait gate, verifies the externally reachable health URL,
+and updates the `current` symlink only after health succeeds.
+
+The generated service uses a read-only filesystem, drops all Linux capabilities,
+sets `no-new-privileges`, uses a bounded temporary filesystem, and publishes the
+container port to loopback only. Put a separately managed TLS reverse proxy in front
+of it. Root SSH, password authentication, unknown host keys, mutable image tags, and
+automatic secret provisioning are refused.
+
+```sh
+vibe deploy self-hosted --application api --environment staging \
+  --revision <git-sha> --host app.example.com --user vibecore \
+  --health-url https://app.example.com/health
+
+vibe deploy self-hosted-rollback --release <failed-release-id> \
+  --host app.example.com --user vibecore \
+  --remote-root /opt/vibecore/my-project \
+  --health-url https://app.example.com/health \
+  --ssh-key /absolute/key/path --approve <rollback-digest>
+```

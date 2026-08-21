@@ -3,6 +3,8 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { ApplicationManifest, DeploymentCompatibility, DeploymentConfigurationPlan, DeploymentProviderKind, DeploymentProviderMetadata, DeploymentWorkload, VibecoreManifest } from "@vibecore/contracts";
 import { digestValue } from "@vibecore/planner";
 export * from "./adapters.js";
+export * from "./releases.js";
+export * from "./self-hosted.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
@@ -48,6 +50,11 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
       { id: "static-sftp", displayName: "Static site over SFTP", workloads: ["static"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Uploads a versioned static artifact over encrypted SSH transport."] },
       { id: "php-sftp", displayName: "PHP application over SFTP", workloads: ["php"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Targets hosts with a declared PHP runtime and an application-scoped deployment path."] },
     ], notes: ["Plain FTP and password arguments are intentionally unsupported; credentials must be secret references."],
+  },
+  {
+    id: "self-hosted", displayName: "Self-hosted Docker", kind: "server", costProfiles: ["low-cost", "infrastructure"], credentialNames: ["DEPLOY_SSH_PRIVATE_KEY"],
+    modes: [{ id: "docker-compose", displayName: "Versioned Docker Compose over SSH", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "planned", notes: ["Requires an image pinned by digest, a non-root SSH user, strict host-key verification, and a pre-provisioned environment file."] }],
+    notes: ["Rootless Docker is preferred. Vibecore does not install Docker or provision secret values on the host."],
   },
 ];
 

@@ -11,7 +11,7 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, createDeploymentConfigurationPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, getDeploymentProvider, listDeploymentProviders } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, createDeploymentConfigurationPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
@@ -328,6 +328,101 @@ deploy.command("setup")
     } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "deployment.setup_failed", severity: "error", component: "deployment", message }], options.json ?? false); process.exitCode = 1; }
   });
 
+deploy.command("releases")
+  .description("Show the local, secret-free deployment release ledger")
+  .option("--application <name>", "filter by application")
+  .option("-e, --environment <name>", "filter by environment")
+  .option("--provider <provider>", "filter by provider")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application?: string; environment?: string; provider?: string; json?: boolean }) => {
+    try {
+      const releases = await new FileStateStore(process.cwd()).releases({ ...(options.application ? { application: options.application } : {}), ...(options.environment ? { environment: options.environment } : {}), ...(options.provider ? { provider: options.provider } : {}) });
+      if (options.json) { printJson({ releases }); return; }
+      if (!releases.length) { console.log("No deployment releases have been recorded"); return; }
+      for (const release of releases) console.log(`${statusSymbol(release.status)} ${release.id}  ${release.application}  ${release.provider}/${release.mode}  ${release.environment}  ${release.sourceRevision}  ${release.status}`);
+    } catch (error) { printDeploymentError("deployment.releases_failed", error, options.json ?? false); }
+  });
+
+deploy.command("verify-health")
+  .description("Verify and record health for a deploying release")
+  .requiredOption("--release <id>", "release ledger identifier")
+  .requiredOption("--url <url>", "HTTP or HTTPS health URL without credentials")
+  .option("--attempts <count>", "health attempts", "3")
+  .option("--timeout <seconds>", "timeout per attempt", "30")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; url: string; attempts: string; timeout: string; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd());
+      const release = (await store.releases()).find(({ id }) => id === options.release);
+      if (!release) throw new Error(`Unknown release: ${options.release}`);
+      const health = await verifyDeploymentHealth(options.url, { attempts: parseInteger(options.attempts, "attempts"), timeoutSeconds: parseInteger(options.timeout, "timeout") });
+      const updated = applyHealthResult(release, health);
+      await store.updateRelease(updated);
+      if (options.json) printJson({ release: updated }); else console.log(`${health.status === "healthy" ? "✓" : "✗"} ${release.id} is ${health.status} after ${health.attempts} attempt(s)`);
+      process.exitCode = health.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.health_failed", error, options.json ?? false); }
+  });
+
+deploy.command("rollback")
+  .description("Plan rollback to the preceding healthy immutable release")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; json?: boolean }) => {
+    try {
+      const plan = createRollbackPlan(await new FileStateStore(process.cwd()).releases(), options.release);
+      if (options.json) printJson({ plan }); else { console.log(`Rollback ${plan.failedReleaseId} to ${plan.targetReleaseId} (${plan.targetSourceRevision})`); console.log(`Strategy: ${plan.strategy}`); console.log(`Plan digest: ${plan.digest}`); console.log("No remote change was made; a provider executor must apply this exact plan."); }
+    } catch (error) { printDeploymentError("deployment.rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("self-hosted")
+  .description("Plan or execute a versioned Docker Compose deployment over SSH")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision")
+  .requiredOption("--host <host>", "SSH hostname with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--remote-root <path>", "versioned remote deployment root")
+  .option("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .option("--apply", "execute the exact-approved plan over SSH")
+  .option("--approve <digest>", "approve the exact deployment plan digest")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; host: string; user: string; healthUrl: string; environment: string; manifest: string; remoteRoot?: string; sshKey?: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createSelfHostedDockerPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, host: options.host, user: options.user, healthUrl: options.healthUrl, ...(options.remoteRoot ? { remoteRoot: options.remoteRoot } : {}) });
+      if (!options.apply) { if (options.json) printJson({ plan }); else { console.log(plan.compose); console.log(`Remote environment file: ${plan.remoteEnvironmentFile}`); console.log(`Required secret names: ${plan.requiredSecretNames.join(", ") || "none"}`); console.log(`Plan digest: ${plan.digest}`); console.log("No remote command was run."); } return; }
+      if (!options.approve || !options.sshKey) { if (options.json) printJson({ plan }); else console.log(`Review the plan, then apply it with:\n  vibe deploy self-hosted --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --host ${plan.host} --user ${plan.user} --health-url ${plan.healthUrl} --ssh-key /absolute/path --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const result = await executeSelfHostedDockerPlan(plan, { approval: options.approve, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Recorded ${result.release.id} as ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.self_hosted_failed", error, options.json ?? false); }
+  });
+
+deploy.command("self-hosted-rollback")
+  .description("Apply an exact-approved rollback using a versioned remote Compose release")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--host <host>", "SSH hostname with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--remote-root <path>", "versioned remote deployment root")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; host: string; user: string; remoteRoot: string; healthUrl: string; sshKey: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release);
+      const result = await executeSelfHostedRollback(plan, releases, { approval: options.approve, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.self_hosted_rollback_failed", error, options.json ?? false); }
+  });
+
 const github = program.command("github").description("Plan secure GitHub repository automation");
 
 github.command("setup")
@@ -604,9 +699,21 @@ function printJson(value: unknown): void {
 }
 
 function statusSymbol(status: string): string {
-  if (status === "succeeded") return "✓";
-  if (status === "failed") return "✗";
+  if (status === "succeeded" || status === "healthy") return "✓";
+  if (status === "failed" || status === "unhealthy") return "✗";
+  if (status === "rolled-back") return "↶";
   return "•";
+}
+
+function parseInteger(value: string, label: string): number {
+  if (!/^\d+$/.test(value)) throw new Error(`${label} must be an integer`);
+  return Number(value);
+}
+
+function printDeploymentError(code: string, error: unknown, json: boolean): void {
+  const message = error instanceof Error ? error.message : String(error);
+  printDiagnostics([{ code, severity: "error", component: "deployment", message }], json);
+  process.exitCode = 1;
 }
 
 function riskSymbol(risk: string): string {

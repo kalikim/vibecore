@@ -229,6 +229,7 @@ export interface PlanLedgerEntry {
 export interface VibecoreState {
   apiVersion: "vibecore.dev/state/v1alpha1";
   plans: PlanLedgerEntry[];
+  releases: Release[];
 }
 
 export type DevProcessStatus = "starting" | "healthy" | "running" | "stopping" | "stopped" | "failed";
@@ -260,11 +261,39 @@ export interface DevSessionRecord {
 
 export interface Release {
   id: string;
+  application: string;
+  provider: string;
+  mode: string;
   environment: string;
   sourceRevision: string;
   planDigest: string;
   status: "deploying" | "healthy" | "unhealthy" | "rolled-back" | "failed";
   createdAt: string;
+  updatedAt: string;
+  health?: DeploymentHealthResult;
+  rollbackOf?: string;
+}
+
+export interface DeploymentHealthResult {
+  url: string;
+  status: "healthy" | "unhealthy";
+  checkedAt: string;
+  attempts: number;
+  statusCode?: number;
+  durationMs: number;
+  errorCode?: string;
+}
+
+export interface DeploymentRollbackPlan {
+  provider: string;
+  mode: string;
+  application: string;
+  environment: string;
+  failedReleaseId: string;
+  targetReleaseId: string;
+  targetSourceRevision: string;
+  strategy: string;
+  digest: string;
 }
 
 export interface DeploymentConfigurationPlan {

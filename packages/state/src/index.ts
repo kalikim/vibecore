@@ -5,12 +5,14 @@ import type {
   Plan,
   PlanExecutionStatus,
   PlanLedgerEntry,
+  Release,
   VibecoreState,
 } from "@vibecore/contracts";
 
 const emptyState = (): VibecoreState => ({
   apiVersion: "vibecore.dev/state/v1alpha1",
   plans: [],
+  releases: [],
 });
 
 export class FileStateStore {
@@ -28,6 +30,8 @@ export class FileStateStore {
       if (parsed.apiVersion !== "vibecore.dev/state/v1alpha1" || !Array.isArray(parsed.plans)) {
         throw new Error("Unsupported or invalid Vibecore state file");
       }
+      parsed.releases ??= [];
+      if (!Array.isArray(parsed.releases)) throw new Error("Unsupported or invalid Vibecore release ledger");
       return parsed;
     } catch (error) {
       if (isNodeError(error) && error.code === "ENOENT") return emptyState();
@@ -73,6 +77,26 @@ export class FileStateStore {
     plan.status = status;
     plan.updatedAt = new Date().toISOString();
     await this.write(state);
+  }
+
+  async recordRelease(release: Release): Promise<void> {
+    const state = await this.read();
+    if (state.releases.some(({ id }) => id === release.id)) throw new Error(`Release already exists: ${release.id}`);
+    state.releases = [release, ...state.releases].slice(0, 200);
+    await this.write(state);
+  }
+
+  async updateRelease(release: Release): Promise<void> {
+    const state = await this.read();
+    const index = state.releases.findIndex(({ id }) => id === release.id);
+    if (index < 0) throw new Error(`Unknown release in state ledger: ${release.id}`);
+    state.releases[index] = release;
+    await this.write(state);
+  }
+
+  async releases(filters: Partial<Pick<Release, "application" | "environment" | "provider">> = {}): Promise<Release[]> {
+    const state = await this.read();
+    return state.releases.filter((release) => Object.entries(filters).every(([key, value]) => release[key as keyof typeof filters] === value));
   }
 
   private async write(state: VibecoreState): Promise<void> {

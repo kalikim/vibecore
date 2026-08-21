@@ -220,6 +220,38 @@ are outside the security model.
 See [deployment adapters](docs/DEPLOYMENTS.md) for every mode, generated artifact,
 account prerequisite, identity boundary, health contract, and rollback strategy.
 
+Inspect recorded releases, verify a newly deployed endpoint, and produce a safe
+rollback plan:
+
+```sh
+pnpm vibe deploy releases
+pnpm vibe deploy verify-health --release <release-id> --url https://example.com/health
+pnpm vibe deploy rollback --release <failed-release-id>
+```
+
+Release records contain provider, environment, immutable revision, status, and
+bounded health evidence. They never contain runtime secrets or response bodies.
+Rollback selects only a preceding healthy release for the same application,
+provider, mode, and environment. The command creates an exact-digest plan; it does
+not claim that a provider rollback occurred before a remote executor applies it.
+
+Self-hosted Docker is the first complete remote executor:
+
+```sh
+pnpm vibe deploy self-hosted \
+  --application api \
+  --environment staging \
+  --revision <git-sha> \
+  --host app.example.com \
+  --user vibecore \
+  --health-url https://app.example.com/health
+```
+
+The application manifest must set `config.deploymentWorkload: container` and an
+immutable `config.deploymentImage` containing `@sha256:<digest>`. Review the plan,
+then repeat it with `--apply --approve <digest> --ssh-key /absolute/key/path`.
+Production additionally requires `--production-approved`.
+
 Synchronize declared secret values one environment at a time:
 
 ```sh
