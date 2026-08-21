@@ -11,7 +11,7 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, applyHealthResult, createDeploymentConfigurationPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, createDeploymentConfigurationPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
@@ -421,6 +421,36 @@ deploy.command("self-hosted-rollback")
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.self_hosted_rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("railway")
+  .description("Plan or execute a Railway deployment from the approved repository revision")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .requiredOption("--project <id>", "existing Railway project ID or name")
+  .requiredOption("--service <id>", "existing Railway service ID or name")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("--mode <mode>", "git or dockerfile", "git")
+  .option("-e, --environment <name>", "Vibecore target environment", "staging")
+  .option("--railway-environment <id>", "Railway environment ID or name")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with RAILWAY_TOKEN")
+  .option("--approve <digest>", "approve the exact Railway deployment plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; project: string; service: string; healthUrl: string; mode: string; environment: string; railwayEnvironment?: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.mode !== "git" && options.mode !== "dockerfile") throw new Error("Railway mode must be git or dockerfile");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createRailwayDeploymentPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, mode: options.mode, project: options.project, service: options.service, healthUrl: options.healthUrl, ...(options.railwayEnvironment ? { railwayEnvironment: options.railwayEnvironment } : {}) });
+      if (!options.apply) { if (options.json) printJson({ plan }); else { console.log(`Target: ${plan.project}/${plan.service} (${plan.railwayEnvironment})`); console.log(`Source: ${plan.sourceRevision} from ${plan.applicationPath}`); console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`); console.log(`Plan digest: ${plan.digest}`); console.log("No Railway deployment was started."); } return; }
+      const token = process.env.RAILWAY_TOKEN;
+      if (!options.approve || !token) { if (options.json) printJson({ plan }); else console.log(`Set RAILWAY_TOKEN in the current process, then apply with:\n  vibe deploy railway --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --project ${plan.project} --service ${plan.service} --health-url ${plan.healthUrl} --mode ${plan.mode} --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const result = await executeRailwayDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Railway release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.railway_failed", error, options.json ?? false); }
   });
 
 const github = program.command("github").description("Plan secure GitHub repository automation");

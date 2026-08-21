@@ -138,3 +138,34 @@ vibe deploy self-hosted-rollback --release <failed-release-id> \
   --health-url https://app.example.com/health \
   --ssh-key /absolute/key/path --approve <rollback-digest>
 ```
+
+## Railway execution
+
+Railway forward deployment is implemented for existing projects using both Railpack
+and Dockerfile modes. Vibecore runs Railway non-interactively with explicit project,
+service, and environment targets. It never uses the CLI's first-run project creation
+flow.
+
+```sh
+vibe deploy railway --application api --environment staging \
+  --revision <current-git-sha> --project <project-id> --service <service-id> \
+  --health-url https://api.example.com/health
+```
+
+Set the project-scoped token in the process environment only:
+
+```sh
+export RAILWAY_TOKEN=<project-scoped-token>
+```
+
+Then repeat the reviewed command with `--apply --approve <digest>`. Before upload,
+Vibecore verifies that repository `HEAD` matches the planned revision and that the
+application path has no uncommitted changes. Railway's CI mode must complete
+successfully, followed by Vibecore's external health check, before the release is
+recorded healthy.
+
+The Railway CLI currently supports redeploying the latest source, but does not expose
+selection of an arbitrary historical deployment for rollback. Vibecore therefore
+marks Railway rollback as unsupported instead of treating `railway redeploy` as a
+rollback. The local rollback plan still identifies the preceding healthy revision for
+an operator using Railway's deployment dashboard.

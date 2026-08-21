@@ -115,8 +115,11 @@ bodies and secrets, and rollback can only select a preceding healthy immutable
 release for the same application, provider, mode, and environment. Provider-specific
 remote execution is implemented for self-hosted Docker over strict SSH, including
 versioned Compose releases, digest-pinned images, external health gating, and
-exact-approved rollback. Managed-provider executors, backup hooks, and interrupted
-remote-deployment reconciliation remain pending.
+exact-approved rollback. Railway forward deployment is implemented with explicit
+project/service/environment targeting, project-scoped token isolation, source-state
+validation, and external health recording. Railway historical rollback remains
+unsupported by its CLI and is not misrepresented as `redeploy`. Other managed-provider
+executors, backup hooks, and interrupted remote-deployment reconciliation remain pending.
 
 Deliverables:
 

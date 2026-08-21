@@ -5,6 +5,7 @@ import { digestValue } from "@vibecore/planner";
 export * from "./adapters.js";
 export * from "./releases.js";
 export * from "./self-hosted.js";
+export * from "./railway.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
@@ -17,8 +18,8 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
   {
     id: "railway", displayName: "Railway", kind: "managed-platform", costProfiles: ["low-cost", "usage-based"], credentialNames: ["RAILWAY_TOKEN"],
     modes: [
-      { id: "git", displayName: "Git source with Railpack", workloads: ["node", "python", "go", "php", "rust", "jvm", "dotnet"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Railway builds linked repositories and discovers a start command."] },
-      { id: "dockerfile", displayName: "Dockerfile", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Use this mode when runtime detection is insufficient or reproducible container builds are required."] },
+      { id: "git", displayName: "Git source with Railpack", workloads: ["node", "python", "go", "php", "rust", "jvm", "dotnet"], source: "git", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "unsupported", notes: ["Railway builds linked repositories and discovers a start command. Arbitrary historical rollback is not exposed by the Railway CLI."] },
+      { id: "dockerfile", displayName: "Dockerfile", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "unsupported", notes: ["Use this mode when runtime detection is insufficient or reproducible container builds are required. Arbitrary historical rollback is not exposed by the Railway CLI."] },
     ], notes: ["Credential values remain external secret references."],
   },
   {

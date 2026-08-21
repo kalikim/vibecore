@@ -252,6 +252,25 @@ immutable `config.deploymentImage` containing `@sha256:<digest>`. Review the pla
 then repeat it with `--apply --approve <digest> --ssh-key /absolute/key/path`.
 Production additionally requires `--production-approved`.
 
+Railway remote deployment is also available for existing projects, services, and
+environments:
+
+```sh
+pnpm vibe deploy railway \
+  --application api \
+  --environment staging \
+  --revision <current-git-sha> \
+  --project <railway-project> \
+  --service <railway-service> \
+  --health-url https://api.example.com/health
+```
+
+Review the plan, export a project-scoped `RAILWAY_TOKEN`, and repeat with
+`--apply --approve <digest>`. Vibecore checks that `HEAD` still matches the approved
+revision and that the application directory is clean before uploading. The token is
+passed only through the Railway process environment and is never accepted as a flag,
+stored in the plan, or written to the release ledger.
+
 Synchronize declared secret values one environment at a time:
 
 ```sh
