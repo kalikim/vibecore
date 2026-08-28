@@ -81,8 +81,8 @@ in generated plans.
   </thead>
   <tbody>
     <tr><td>Railway</td><td>Scoped project token for automation</td><td><code>RAILWAY_TOKEN</code></td></tr>
-    <tr><td>AWS</td><td>GitHub OIDC role federation</td><td>No long-lived AWS access key</td></tr>
-    <tr><td>Azure</td><td>GitHub workload identity federation</td><td>No client secret</td></tr>
+    <tr><td>AWS</td><td>Current AWS CLI identity locally; GitHub OIDC role federation in CI</td><td>No long-lived AWS access key</td></tr>
+    <tr><td>Azure</td><td>Current <code>az</code> login locally; GitHub workload identity federation in CI</td><td>No client secret</td></tr>
     <tr><td>DigitalOcean</td><td>Scoped API token or repository connection</td><td><code>DIGITALOCEAN_ACCESS_TOKEN</code></td></tr>
     <tr><td>Droplet</td><td>Pinned SSH host key and non-root deployment key</td><td>Deployment key supplied by the operator</td></tr>
     <tr><td>Shared hosting</td><td>Pinned SSH host key and application-scoped SFTP key</td><td><code>DEPLOY_SSH_PRIVATE_KEY</code></td></tr>
@@ -104,7 +104,10 @@ The shared release lifecycle is implemented locally. `vibe deploy releases` read
 the secret-free ledger, `vibe deploy verify-health` performs bounded HTTP checks
 without following redirects or storing response bodies, and `vibe deploy rollback`
 selects the preceding healthy immutable release and creates a tamper-evident plan.
-Managed-provider remote execution of that plan remains explicit and pending.
+Self-hosted Docker, Railway, DigitalOcean App Platform, Azure App Service and
+Container Apps, and AWS S3/CloudFront, App Runner, and ECS Fargate can apply that
+plan through their executors. Droplet and shared-hosting remote execution remain
+pending.
 
 ## Self-hosted Docker execution
 
@@ -169,3 +172,124 @@ selection of an arbitrary historical deployment for rollback. Vibecore therefore
 marks Railway rollback as unsupported instead of treating `railway redeploy` as a
 rollback. The local rollback plan still identifies the preceding healthy revision for
 an operator using Railway's deployment dashboard.
+
+## DigitalOcean App Platform execution
+
+Forward deployment and historical rollback are implemented for existing
+GitHub-backed App Platform apps. Vibecore does not implicitly create a paid app and
+does not replace its complete app spec during each release.
+
+```sh
+vibe deploy digitalocean --application api --environment staging \
+  --revision <full-current-git-sha> --app-id <app-id> \
+  --repository owner/repository --branch main \
+  --health-url https://api.example.com/health
+```
+
+Deploy-on-push must be disabled. Before execution, Vibecore verifies local `HEAD`,
+checks the application and `.do/app.yaml` for uncommitted changes, confirms the
+configured App Platform repository and branch, and verifies that the Git remote
+branch still points to the approved SHA. The access token is written only to a
+temporary mode-`0600` doctl config file and deleted after the command completes.
+
+DigitalOcean's deployment ID is stored alongside the secret-free release metadata.
+For an unhealthy release, first generate the generic rollback digest and then apply
+it:
+
+```sh
+vibe deploy rollback --release <failed-release-id>
+
+vibe deploy digitalocean-rollback --release <failed-release-id> \
+  --health-url https://api.example.com/health \
+  --approve <rollback-digest>
+```
+
+The executor calls DigitalOcean's rollback validation endpoint before creating the
+historical rollback. Database data is not rolled back by App Platform and still
+requires a separate database backup and recovery workflow.
+
+## Azure execution
+
+Forward deployment is implemented for existing Azure resources. Vibecore does not
+create resource groups, App Service plans, Container Apps environments, or Static
+Web Apps, and it will not run `az login` or accept a client secret.
+
+```sh
+vibe deploy azure --application api --environment staging \
+  --revision <full-current-git-sha> --mode app-service \
+  --subscription <subscription-guid> --tenant <tenant-guid> \
+  --resource-group rg-app --name api-staging \
+  --health-url https://api.example.com/health
+```
+
+Log in with `az login` or GitHub workload identity first. Before execution,
+Vibecore verifies that the Azure CLI subscription and tenant match the plan, that
+repository `HEAD` matches the approved SHA, and that the application path and
+generated Azure configuration are clean.
+
+- **App Service** zip-deploys `git archive` of the application path. The existing
+  Linux app must already enable HTTPS-only, disable FTPS, and set
+  `SCM_DO_BUILD_DURING_DEPLOYMENT=true`. Container workloads update
+  `config.deploymentImage` pinned with `@sha256:<digest>`.
+- **Container Apps** require `config.deploymentWorkload: container`, a digest-pinned
+  image, and multiple revision mode. Vibecore updates the image, then shifts 100%
+  of ingress traffic to the new revision before the external health check.
+- **Static Web Apps** deploy a built output directory through `swa deploy` using the
+  current Azure CLI identity. Disconnect GitHub first so repository auto-deploy
+  cannot race the approved revision. Historical rollback is unsupported because
+  Azure does not retain previous static artifacts.
+
+```sh
+vibe deploy rollback --release <failed-release-id>
+
+vibe deploy azure-rollback --release <failed-release-id> \
+  --tenant <tenant-guid> \
+  --health-url https://api.example.com/health \
+  --approve <rollback-digest>
+```
+
+App Service rollback re-archives the preceding healthy SHA. Container Apps rollback
+shifts traffic to the recorded revision. Database data is not rolled back.
+
+## AWS execution
+
+Forward deployment and rollback are implemented for existing AWS resources. Vibecore
+does not create buckets, distributions, App Runner services, ECS clusters, or task
+roles, and it will not run `aws configure` or accept access keys as flags.
+
+```sh
+vibe deploy aws --application web --environment staging \
+  --revision <full-current-git-sha> --mode s3-cloudfront \
+  --account <12-digit-account-id> --region us-east-1 \
+  --bucket app-assets --distribution E123456789ABCD \
+  --health-url https://app.example.com/health
+```
+
+Authenticate with `aws sso login` or an OIDC assumed role first. Before execution,
+Vibecore verifies that `sts get-caller-identity` matches the approved account, that
+repository `HEAD` matches the approved SHA, and that the application path and
+generated AWS configuration are clean.
+
+- **S3 and CloudFront** require a private, fully blocked, versioned bucket whose
+  CloudFront origin already points at that bucket. Vibecore syncs the built output
+  to `s3://bucket/releases/<sha>/`, sets the origin path to that prefix, and
+  invalidates `/*`.
+- **App Runner** requires `config.deploymentWorkload: container`, a digest-pinned
+  `config.deploymentImage`, and automatic deployments disabled. Vibecore updates the
+  existing service and waits until it is running.
+- **ECS Fargate** copies the current task definition family, replaces the `app`
+  container image with the digest-pinned image, registers a new revision, and waits
+  for the service to stabilize. Assign public IP must already be disabled.
+
+```sh
+vibe deploy rollback --release <failed-release-id>
+
+vibe deploy aws-rollback --release <failed-release-id> \
+  --health-url https://app.example.com/health \
+  --approve <rollback-digest>
+```
+
+S3/CloudFront rollback retargets the origin path to the preceding release prefix.
+App Runner rollback updates the service to the preceding image digest. ECS rollback
+points the service at the preceding task definition ARN. Database data is not rolled
+back.

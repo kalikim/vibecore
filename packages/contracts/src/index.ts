@@ -272,6 +272,8 @@ export interface Release {
   updatedAt: string;
   health?: DeploymentHealthResult;
   rollbackOf?: string;
+  providerResourceId?: string;
+  providerReleaseId?: string;
 }
 
 export interface DeploymentHealthResult {
@@ -292,6 +294,8 @@ export interface DeploymentRollbackPlan {
   failedReleaseId: string;
   targetReleaseId: string;
   targetSourceRevision: string;
+  providerResourceId?: string;
+  targetProviderReleaseId?: string;
   strategy: string;
   digest: string;
 }

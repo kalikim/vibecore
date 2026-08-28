@@ -6,6 +6,9 @@ export * from "./adapters.js";
 export * from "./releases.js";
 export * from "./self-hosted.js";
 export * from "./railway.js";
+export * from "./digitalocean.js";
+export * from "./azure.js";
+export * from "./aws.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
@@ -25,23 +28,24 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
   {
     id: "aws", displayName: "Amazon Web Services", kind: "cloud", costProfiles: ["free-tier", "usage-based", "infrastructure"], credentialNames: ["AWS_ROLE_ARN", "AWS_REGION"],
     modes: [
-      { id: "s3-cloudfront", displayName: "S3 and CloudFront static site", workloads: ["static"], source: "artifact", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Designed for static build artifacts only."] },
-      { id: "app-runner", displayName: "App Runner service", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Deploys a web service from a container image."] },
-      { id: "ecs-fargate", displayName: "ECS on Fargate", workloads: ["container"], source: "container-image", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Intended for teams that need more infrastructure control."] },
-    ], notes: ["GitHub Actions integrations should use OIDC role federation instead of long-lived access keys."],
+      { id: "s3-cloudfront", displayName: "S3 and CloudFront static site", workloads: ["static"], source: "artifact", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing versioned private buckets receive a release prefix of the approved artifact. CloudFront origin path is retargeted and invalidated. Access keys are refused."] },
+      { id: "app-runner", displayName: "App Runner service", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing App Runner services with automatic deployments disabled receive a digest-pinned image. Historical rollback updates the service to the preceding image digest."] },
+      { id: "ecs-fargate", displayName: "ECS on Fargate", workloads: ["container"], source: "container-image", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Existing Fargate services on private subnets register a new task definition with a digest-pinned image. Rollback points the service at the preceding task definition ARN."] },
+    ], notes: ["Local execution uses the current AWS CLI identity. GitHub Actions should assume an OIDC role before invoking Vibecore. Long-lived access keys are refused as command arguments."],
   },
   {
     id: "azure", displayName: "Microsoft Azure", kind: "cloud", costProfiles: ["free-tier", "usage-based", "infrastructure"], credentialNames: ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"],
     modes: [
-      { id: "static-web-apps", displayName: "Static Web Apps", workloads: ["static"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Best fit for static frontends and supported managed API integrations."] },
-      { id: "app-service", displayName: "App Service", workloads: ["node", "python", "php", "jvm", "dotnet", "container"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Supports managed language runtimes and custom containers."] },
-      { id: "container-apps", displayName: "Container Apps", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed container target for APIs, web services, and workers."] },
-    ], notes: ["GitHub Actions integrations should use Azure workload identity federation instead of client secrets."],
+      { id: "static-web-apps", displayName: "Static Web Apps", workloads: ["static"], source: "artifact", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "unsupported", notes: ["Existing disconnected Static Web Apps receive exact-approved artifact deploys through the SWA CLI using the current Azure CLI identity. GitHub-connected apps must be disconnected first. Historical rollback is unsupported because Azure does not retain previous static artifacts."] },
+      { id: "app-service", displayName: "App Service", workloads: ["node", "python", "php", "jvm", "dotnet", "container"], source: "git", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing Linux App Service apps receive a git-archive zip of the approved revision with SCM_DO_BUILD_DURING_DEPLOYMENT already enabled. Container workloads update a digest-pinned image. Client secrets are refused."] },
+      { id: "container-apps", displayName: "Container Apps", workloads: ["container"], source: "container-image", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing Container Apps in multiple-revision mode receive a digest-pinned image, then shift ingress traffic after the revision is created. Historical rollback uses revision traffic weights."] },
+    ], notes: ["Local execution uses the current az login. GitHub Actions should use workload identity federation. Client secrets are refused."],
   },
   {
     id: "digitalocean", displayName: "DigitalOcean", kind: "cloud", costProfiles: ["low-cost", "usage-based", "infrastructure"], credentialNames: ["DIGITALOCEAN_ACCESS_TOKEN"],
     modes: [
-      { id: "app-platform", displayName: "App Platform", workloads: ["static", "node", "python", "go", "php", "container"], source: "git", configure: "implemented", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Managed source or container deployment."] },
+      { id: "app-platform", displayName: "App Platform Git source", workloads: ["static", "node", "python", "go", "php"], source: "git", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing GitHub-backed apps deploy through an exact-approved branch revision; historical rollback uses DigitalOcean's validated rollback API."] },
+      { id: "app-platform-image", displayName: "App Platform container image", workloads: ["container"], source: "container-image", configure: "planned", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Digest-pinned container image execution is a separate pending adapter."] },
       { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Lower-level server deployment; patching and hardening remain the operator's responsibility."] },
     ], notes: ["Droplet support will require SSH host-key verification and non-root deployment users."],
   },

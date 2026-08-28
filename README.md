@@ -197,8 +197,8 @@ pnpm vibe deploy support --application web --json
   <tbody>
     <tr><td>Vercel</td><td>Git-connected static and Node web apps</td><td>Free tier, usage based</td><td>Preview configuration implemented</td></tr>
     <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Configuration implemented</td></tr>
-    <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Configuration implemented</td></tr>
-    <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>Configuration implemented</td></tr>
+    <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Forward deployment and rollback implemented</td></tr>
+    <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>App Service and Container Apps execution implemented; Static Web Apps artifact deploy implemented</td></tr>
     <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>Configuration implemented</td></tr>
     <tr><td>Shared hosting</td><td>Static or PHP artifact over SFTP</td><td>Low cost</td><td>Configuration implemented</td></tr>
   </tbody>
@@ -270,6 +270,84 @@ Review the plan, export a project-scoped `RAILWAY_TOKEN`, and repeat with
 revision and that the application directory is clean before uploading. The token is
 passed only through the Railway process environment and is never accepted as a flag,
 stored in the plan, or written to the release ledger.
+
+Deploy an approved Git revision to an existing DigitalOcean App Platform app:
+
+```sh
+pnpm vibe deploy digitalocean \
+  --application api \
+  --environment staging \
+  --revision <full-current-git-sha> \
+  --app-id <digitalocean-app-id> \
+  --repository owner/repository \
+  --branch main \
+  --health-url https://api.example.com/health
+```
+
+The app must already use that GitHub repository and branch with deploy-on-push
+disabled. Review the plan, export `DIGITALOCEAN_ACCESS_TOKEN`, and repeat with
+`--apply --approve <digest>`. Vibecore verifies local `HEAD`, the clean application
+path, and the remote branch revision before asking App Platform to deploy. The
+provider deployment ID is saved in the release ledger, enabling validated historical
+rollback through `vibe deploy digitalocean-rollback`.
+
+Deploy an approved revision to an existing Azure App Service, Container App, or
+disconnected Static Web App:
+
+```sh
+pnpm vibe deploy azure \
+  --application api \
+  --environment staging \
+  --revision <full-current-git-sha> \
+  --mode app-service \
+  --subscription <subscription-guid> \
+  --tenant <tenant-guid> \
+  --resource-group rg-app \
+  --name api-staging \
+  --health-url https://api.example.com/health
+```
+
+Review the plan, then repeat it with `--apply --approve <digest>` while logged in
+with `az`. Vibecore checks that the Azure CLI subscription and tenant match the
+plan, that `HEAD` still matches the approved revision, and that the application
+path is clean. It never accepts a client secret, password, or deployment token
+flag. Production additionally requires `--production-approved`.
+
+App Service zip-deploys a `git archive` of the approved path and requires
+`SCM_DO_BUILD_DURING_DEPLOYMENT=true` on the existing Linux app. Container Apps
+updates a digest-pinned image in multiple-revision mode, then shifts ingress
+traffic. Static Web Apps deploys a built output directory through the SWA CLI
+using the current Azure identity; GitHub-connected apps must be disconnected
+first. Rollback is implemented for App Service and Container Apps through
+`vibe deploy azure-rollback`. Static Web Apps historical rollback is unsupported.
+
+Deploy an approved revision to existing AWS resources:
+
+```sh
+pnpm vibe deploy aws \
+  --application web \
+  --environment staging \
+  --revision <full-current-git-sha> \
+  --mode s3-cloudfront \
+  --account <12-digit-account-id> \
+  --region us-east-1 \
+  --bucket app-assets \
+  --distribution E123456789ABCD \
+  --health-url https://app.example.com/health
+```
+
+Review the plan, then repeat it with `--apply --approve <digest>` while authenticated
+to the AWS CLI through SSO or a GitHub OIDC assumed role. Vibecore checks that
+`sts get-caller-identity` matches the approved account, that `HEAD` still matches
+the approved revision, and that the application path is clean. Access keys, secret
+keys, and session tokens are never accepted as flags.
+
+S3/CloudFront uploads a versioned `releases/<sha>/` prefix to a private bucket,
+retargets the CloudFront origin path, and invalidates `/*`. App Runner and ECS
+Fargate update existing services with `config.deploymentImage` pinned by
+`@sha256:<digest>`. App Runner automatic deployments must already be disabled, and
+Fargate services must use private subnets with a disabled public IP. Rollback is
+`vibe deploy aws-rollback`.
 
 Synchronize declared secret values one environment at a time:
 

@@ -11,7 +11,7 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, applyHealthResult, createDeploymentConfigurationPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
@@ -451,6 +451,155 @@ deploy.command("railway")
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Railway release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.railway_failed", error, options.json ?? false); }
+  });
+
+deploy.command("digitalocean")
+  .description("Plan or deploy an approved revision to an existing DigitalOcean App Platform app")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "full Git source revision matching HEAD and the remote branch")
+  .requiredOption("--app-id <id>", "existing DigitalOcean App Platform app ID")
+  .requiredOption("--repository <owner/name>", "GitHub repository configured on the app")
+  .requiredOption("--branch <branch>", "GitHub branch configured on the app")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("--git-remote <name>", "local Git remote used to verify the branch", "origin")
+  .option("-e, --environment <name>", "Vibecore target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "start the exact-approved deployment")
+  .option("--approve <digest>", "approve the exact DigitalOcean deployment plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; appId: string; repository: string; branch: string; healthUrl: string; gitRemote: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest)); const plan = createDigitalOceanDeploymentPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, appId: options.appId, repository: options.repository, branch: options.branch, gitRemote: options.gitRemote, healthUrl: options.healthUrl });
+      if (!options.apply) { if (options.json) printJson({ plan }); else { console.log(`Target: DigitalOcean app ${plan.appId}`); console.log(`Source: ${plan.repository}@${plan.branch} (${plan.sourceRevision})`); console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`); console.log(`Plan digest: ${plan.digest}`); console.log("No DigitalOcean deployment was started."); } return; }
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+      if (!options.approve || !token) { if (options.json) printJson({ plan }); else console.log(`Set DIGITALOCEAN_ACCESS_TOKEN in the current process, then repeat this command with --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const result = await executeDigitalOceanDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false }); await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean release ${result.release.id} is ${result.release.status}`); process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.digitalocean_failed", error, options.json ?? false); }
+  });
+
+deploy.command("digitalocean-rollback")
+  .description("Apply an exact-approved DigitalOcean historical deployment rollback")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; healthUrl: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN; if (!token) throw new Error("Set DIGITALOCEAN_ACCESS_TOKEN in the current process"); const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release); const result = await executeDigitalOceanRollback(plan, releases, { approval: options.approve, token, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false }); await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean rollback release ${result.release.id} is ${result.release.status}`); process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.digitalocean_rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("azure")
+  .description("Plan or deploy an approved revision to existing Azure App Service, Container Apps, or Static Web Apps")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "full Git source revision matching HEAD")
+  .requiredOption("--mode <mode>", "static-web-apps, app-service, or container-apps")
+  .requiredOption("--subscription <guid>", "Azure subscription ID")
+  .requiredOption("--tenant <guid>", "Azure tenant ID")
+  .requiredOption("--resource-group <name>", "existing Azure resource group")
+  .requiredOption("--name <name>", "existing Azure resource name")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "Vibecore target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with the current az identity")
+  .option("--approve <digest>", "approve the exact Azure deployment plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; mode: string; subscription: string; tenant: string; resourceGroup: string; name: string; healthUrl: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.mode !== "static-web-apps" && options.mode !== "app-service" && options.mode !== "container-apps") throw new Error("Azure mode must be static-web-apps, app-service, or container-apps");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createAzureDeploymentPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, mode: options.mode as AzureDeploymentMode, subscriptionId: options.subscription, tenantId: options.tenant, resourceGroup: options.resourceGroup, resourceName: options.name, healthUrl: options.healthUrl });
+      if (!options.apply) { if (options.json) printJson({ plan }); else { console.log(`Target: Azure ${plan.mode} ${plan.resourceGroup}/${plan.resourceName}`); console.log(`Subscription: ${plan.subscriptionId}`); console.log(`Source: ${plan.sourceRevision} from ${plan.applicationPath}`); console.log(`Required secret names: ${plan.requiredSecretNames.join(", ") || "none"}`); console.log(`Plan digest: ${plan.digest}`); console.log("No Azure deployment was started."); } return; }
+      if (!options.approve) { if (options.json) printJson({ plan }); else console.log(`Review the plan, then apply it with the current az login:\n  vibe deploy azure --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --mode ${plan.mode} --subscription ${plan.subscriptionId} --tenant ${plan.tenantId} --resource-group ${plan.resourceGroup} --name ${plan.resourceName} --health-url ${plan.healthUrl} --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const result = await executeAzureDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Azure release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.azure_failed", error, options.json ?? false); }
+  });
+
+deploy.command("azure-rollback")
+  .description("Apply an exact-approved Azure App Service or Container Apps rollback")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--tenant <guid>", "Azure tenant ID matching the current az identity")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; tenant: string; healthUrl: string; approve: string; manifest: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd());
+      const releases = await store.releases();
+      const plan = createRollbackPlan(releases, options.release);
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const application = manifest.applications[plan.application];
+      if (!application) throw new Error(`Application is not declared: ${plan.application}`);
+      const result = await executeAzureRollback(plan, releases, { approval: options.approve, repositoryRoot: process.cwd(), applicationPath: application.path, tenantId: options.tenant, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Azure rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.azure_rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("aws")
+  .description("Plan or deploy an approved revision to existing AWS S3/CloudFront, App Runner, or ECS Fargate resources")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "full Git source revision matching HEAD")
+  .requiredOption("--mode <mode>", "s3-cloudfront, app-runner, or ecs-fargate")
+  .requiredOption("--account <id>", "12-digit AWS account ID")
+  .requiredOption("--region <region>", "AWS region")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("--bucket <name>", "existing private versioned S3 bucket")
+  .option("--distribution <id>", "existing CloudFront distribution ID")
+  .option("--service-arn <arn>", "existing App Runner service ARN")
+  .option("--cluster <name>", "existing ECS cluster name")
+  .option("--service <name>", "existing ECS service name")
+  .option("-e, --environment <name>", "Vibecore target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with the current AWS CLI identity")
+  .option("--approve <digest>", "approve the exact AWS deployment plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; mode: string; account: string; region: string; healthUrl: string; bucket?: string; distribution?: string; serviceArn?: string; cluster?: string; service?: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.mode !== "s3-cloudfront" && options.mode !== "app-runner" && options.mode !== "ecs-fargate") throw new Error("AWS mode must be s3-cloudfront, app-runner, or ecs-fargate");
+      if (options.mode === "s3-cloudfront" && (!options.bucket || !options.distribution)) throw new Error("S3 and CloudFront deployment requires --bucket and --distribution");
+      if (options.mode === "app-runner" && !options.serviceArn) throw new Error("App Runner deployment requires --service-arn");
+      if (options.mode === "ecs-fargate" && (!options.cluster || !options.service)) throw new Error("ECS Fargate deployment requires --cluster and --service");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createAwsDeploymentPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, mode: options.mode as AwsDeploymentMode, accountId: options.account, region: options.region, healthUrl: options.healthUrl, ...(options.bucket ? { bucket: options.bucket } : {}), ...(options.distribution ? { distributionId: options.distribution } : {}), ...(options.serviceArn ? { serviceArn: options.serviceArn } : {}), ...(options.cluster ? { cluster: options.cluster } : {}), ...(options.service ? { service: options.service } : {}) });
+      if (!options.apply) { if (options.json) printJson({ plan }); else { console.log(`Target: AWS ${plan.mode} ${plan.region}/${plan.accountId}`); console.log(`Source: ${plan.sourceRevision} from ${plan.applicationPath}`); console.log(`Required secret names: ${plan.requiredSecretNames.join(", ") || "none"}`); console.log(`Plan digest: ${plan.digest}`); console.log("No AWS deployment was started."); } return; }
+      if (!options.approve) { if (options.json) printJson({ plan }); else console.log(`Review the plan, then apply it with the current AWS CLI identity:\n  vibe deploy aws --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --mode ${plan.mode} --account ${plan.accountId} --region ${plan.region} --health-url ${plan.healthUrl} --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`); process.exitCode = 2; return; }
+      const result = await executeAwsDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} AWS release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.aws_failed", error, options.json ?? false); }
+  });
+
+deploy.command("aws-rollback")
+  .description("Apply an exact-approved AWS S3/CloudFront, App Runner, or ECS Fargate rollback")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; healthUrl: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd());
+      const releases = await store.releases();
+      const plan = createRollbackPlan(releases, options.release);
+      const result = await executeAwsRollback(plan, releases, { approval: options.approve, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} AWS rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.aws_rollback_failed", error, options.json ?? false); }
   });
 
 const github = program.command("github").description("Plan secure GitHub repository automation");

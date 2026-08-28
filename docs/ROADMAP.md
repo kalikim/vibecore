@@ -120,6 +120,23 @@ project/service/environment targeting, project-scoped token isolation, source-st
 validation, and external health recording. Railway historical rollback remains
 unsupported by its CLI and is not misrepresented as `redeploy`. Other managed-provider
 executors, backup hooks, and interrupted remote-deployment reconciliation remain pending.
+DigitalOcean App Platform forward deployment is implemented for existing GitHub-backed
+apps with automatic deployment disabled, local and remote revision verification,
+temporary token isolation, provider deployment ID recording, external health gating,
+and validated historical rollback through the official API. Digest-pinned App Platform
+container images and Droplet execution remain pending.
+Azure forward deployment is implemented for existing App Service, Container Apps, and
+disconnected Static Web Apps using the current `az` identity. App Service zip-deploys
+an approved git archive, Container Apps shift traffic onto a digest-pinned revision,
+and Static Web Apps deploy a built artifact through the SWA CLI. Client secrets are
+refused. App Service and Container Apps historical rollback are implemented; Static
+Web Apps historical rollback remains unsupported.
+AWS forward deployment and rollback are implemented for existing S3/CloudFront,
+App Runner, and ECS Fargate resources using the current AWS CLI identity. Static
+releases use a versioned S3 prefix and CloudFront origin-path retargeting. Container
+releases require digest-pinned images, disabled App Runner auto-deploy, and private
+Fargate networking. Access keys are refused as command arguments. Droplet and
+shared-hosting remote execution remain pending.
 
 Deliverables:
 

@@ -13,11 +13,12 @@ describe("deployment provider registry", () => {
   it("lists managed cloud and affordable hosting targets without claiming planned deployment is implemented", () => {
     expect(listDeploymentProviders().map(({ id }) => id)).toEqual(["vercel", "railway", "aws", "azure", "digitalocean", "shared-hosting", "self-hosted"]);
     expect(getDeploymentProvider("do")?.id).toBe("digitalocean");
+    expect(getDeploymentProvider("aws")?.modes.find(({ id }) => id === "s3-cloudfront")?.deploy).toBe("implemented");
     expect(getDeploymentProvider("shared-hosting")?.modes.find(({ id }) => id === "static-sftp")?.deploy).toBe("planned");
     expect(getDeploymentProvider("self-hosted")?.modes[0]).toMatchObject({ configure: "implemented", deploy: "implemented", rollback: "planned" });
   });
   it("matches applications to provider modes and keeps mobile releases separate", () => {
-    expect(evaluateDeploymentCompatibility(manifest, "web", "azure", "app-service")).toMatchObject({ workload: "node", compatible: true, status: "planned" });
+    expect(evaluateDeploymentCompatibility(manifest, "web", "azure", "app-service")).toMatchObject({ workload: "node", compatible: true, status: "implemented" });
     expect(evaluateDeploymentCompatibility(manifest, "web", "shared-hosting", "static-sftp")).toMatchObject({ compatible: false, status: "unsupported" });
     const mobile: VibecoreManifest = { ...manifest, applications: { app: { type: "mobile", framework: "expo", language: "typescript", path: "apps/mobile" } } };
     expect(evaluateDeploymentCompatibility(mobile, "app", "railway", "git")).toMatchObject({ compatible: false, status: "unsupported" });
