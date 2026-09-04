@@ -199,8 +199,8 @@ pnpm vibe deploy support --application web --json
     <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Configuration implemented</td></tr>
     <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Forward deployment and rollback implemented</td></tr>
     <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>App Service and Container Apps execution implemented; Static Web Apps artifact deploy implemented</td></tr>
-    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>Configuration implemented</td></tr>
-    <tr><td>Shared hosting</td><td>Static or PHP artifact over SFTP</td><td>Low cost</td><td>Configuration implemented</td></tr>
+    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>App Platform forward deploy and rollback implemented; Droplet remains configuration-only</td></tr>
+    <tr><td>Shared hosting</td><td>Static or PHP artifact over SSH/SFTP</td><td>Low cost</td><td>Versioned upload and atomic-symlink rollback implemented</td></tr>
   </tbody>
 </table>
 
@@ -213,9 +213,10 @@ path.
 
 Cloud workflows will prefer short-lived GitHub OIDC identities. Shared hosting is a
 deliberately narrower compatibility path for developers with existing inexpensive
-hosting: versioned static builds and PHP applications can use SSH/SFTP, while plain
-FTP, passwords in command arguments, root SSH deployment, and secret values in plans
-are outside the security model.
+hosting: versioned static builds and PHP applications upload over SSH/SFTP into
+`releases/<sha>/`, then `current` is atomically repointed. Plain FTP, passwords in
+command arguments, root SSH deployment, live-tree overwrites, and secret values in
+plans are refused.
 
 See [deployment adapters](docs/DEPLOYMENTS.md) for every mode, generated artifact,
 account prerequisite, identity boundary, health contract, and rollback strategy.
@@ -349,6 +350,26 @@ Fargate update existing services with `config.deploymentImage` pinned by
 Fargate services must use private subnets with a disabled public IP. Rollback is
 `vibe deploy aws-rollback`.
 
+Upload a versioned static or PHP release over SSH/SFTP:
+
+```sh
+pnpm vibe deploy shared-hosting \
+  --application web \
+  --environment staging \
+  --revision <git-sha> \
+  --mode static-sftp \
+  --host host.example.com \
+  --user deploy \
+  --remote-root /home/deploy/site \
+  --health-url https://site.example.com/health
+```
+
+Review the plan, then repeat with `--apply --approve <digest> --ssh-key /absolute/key/path`.
+Files land in `releases/<sha>/`; `current` is a symlink and is never a live directory
+overwrite. Rollback is `vibe deploy shared-hosting-rollback`. PHP applications use
+`--mode php-sftp` and upload the application path instead of the static output
+directory.
+
 Synchronize declared secret values one environment at a time:
 
 ```sh
@@ -384,6 +405,33 @@ pnpm vibe db check drift
 compares the configured live datasource with the schema and exits with code 2 when
 changes are detected. Database credentials are never accepted as command arguments,
 and known secret environment values are redacted from captured output.
+
+Plan-first migrate, seed, backup, and restore require exact digest approval.
+Destructive statements need `--allow-destructive`. Production destructive
+migrations also need `--backup-checksum` from a prior `vibe db backup` and
+`--production-approved`.
+
+```sh
+pnpm vibe db backup --engine postgresql
+pnpm vibe db backup --engine postgresql --apply --approve <digest>
+pnpm vibe db migrate --tool prisma --allow-destructive --backup-checksum <sha256>
+pnpm vibe db migrate --tool prisma --allow-destructive --backup-checksum <sha256> --apply --approve <digest>
+pnpm vibe db seed
+pnpm vibe db restore --engine postgresql --backup .vibecore/backups/<file> --backup-checksum <sha256> --allow-destructive
+```
+
+`prisma migrate deploy`, `drizzle-kit migrate`, `typeorm migration:run`,
+`mikro-orm migration:up`, and declarative MongoDB JSON operations are executed.
+TypeORM requires a DataSource module (`--datasource`, default `src/data-source.ts`).
+MikroORM auto-discovers its config unless `--config` is set. `schema:sync`,
+`migration:revert`, and `migration:down` are not wrapped. Connection URLs stay in
+the process environment; dump tools receive passwords through `PGPASSWORD` or a
+mode-`0600` defaults file, never as CLI flags.
+
+```sh
+pnpm vibe db migrate --tool typeorm --datasource src/data-source.ts
+pnpm vibe db migrate --tool mikro-orm --config mikro-orm.config.ts
+```
 
 ## Database adapter model
 
@@ -473,16 +521,21 @@ MongoDB replica-set mode creates its keyfile inside the container from the requi
 `MONGO_REPLICA_SET_KEY` secret and initiates a single-node `rs0` during readiness.
 This supports local transactions without committing a reusable keyfile.
 
-Drizzle and MongoDB migrations can be inspected offline:
+Drizzle, TypeORM, MikroORM, Mongoose, and MongoDB migrations can be inspected
+offline:
 
 ```sh
 pnpm vibe db inspect-tool --tool drizzle --path drizzle
 pnpm vibe db inspect-tool --tool mongodb --path migrations/mongodb
+pnpm vibe db inspect-tool --tool typeorm --path src/migrations
+pnpm vibe db inspect-tool --tool mikro-orm --path src/migrations
+pnpm vibe db inspect-tool --tool mongoose --path migrations/mongoose
 ```
 
 Drizzle inspection supports both flat `.sql` files and timestamped directories with
-`migration.sql`. MongoDB uses ordered declarative JSON files containing an
-`operations` array. Supported operation types are `createCollection`, `createIndex`,
-`collMod`, `renameCollection`, `dropIndex`, `updateMany`, `deleteMany`, and
-`dropCollection`. Unknown operations are blocked as destructive instead of executing
-arbitrary JavaScript.
+`migration.sql`. TypeORM and MikroORM inspection extracts `query()` / `addSql()`
+SQL fragments and treats unparsed TypeScript as `review`. MongoDB and Mongoose use
+ordered declarative JSON files containing an `operations` array. Supported operation
+types are `createCollection`, `createIndex`, `collMod`, `renameCollection`,
+`dropIndex`, `updateMany`, `deleteMany`, and `dropCollection`. Unknown operations
+are blocked as destructive instead of executing arbitrary JavaScript.

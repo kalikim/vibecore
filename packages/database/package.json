@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@vibecore/contracts": "workspace:*",
+    "@vibecore/planner": "workspace:*",
     "yaml": "^2.8.0"
   }
 }

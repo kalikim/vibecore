@@ -9,6 +9,7 @@ export * from "./railway.js";
 export * from "./digitalocean.js";
 export * from "./azure.js";
 export * from "./aws.js";
+export * from "./shared-hosting.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
@@ -52,13 +53,13 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
   {
     id: "shared-hosting", displayName: "Shared hosting", kind: "shared-hosting", costProfiles: ["low-cost"], credentialNames: ["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_SSH_PRIVATE_KEY", "DEPLOY_PATH"],
     modes: [
-      { id: "static-sftp", displayName: "Static site over SFTP", workloads: ["static"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Uploads a versioned static artifact over encrypted SSH transport."] },
-      { id: "php-sftp", displayName: "PHP application over SFTP", workloads: ["php"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Targets hosts with a declared PHP runtime and an application-scoped deployment path."] },
+      { id: "static-sftp", displayName: "Static site over SFTP", workloads: ["static"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Uploads a versioned static artifact over SSH/SFTP, then atomically repoints current. Plain FTP, passwords, and live-tree overwrites are refused."] },
+      { id: "php-sftp", displayName: "PHP application over SFTP", workloads: ["php"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Uploads the application tree into a versioned release directory over SSH/SFTP, then atomically repoints current. Plain FTP, passwords, and live-tree overwrites are refused."] },
     ], notes: ["Plain FTP and password arguments are intentionally unsupported; credentials must be secret references."],
   },
   {
     id: "self-hosted", displayName: "Self-hosted Docker", kind: "server", costProfiles: ["low-cost", "infrastructure"], credentialNames: ["DEPLOY_SSH_PRIVATE_KEY"],
-    modes: [{ id: "docker-compose", displayName: "Versioned Docker Compose over SSH", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "planned", notes: ["Requires an image pinned by digest, a non-root SSH user, strict host-key verification, and a pre-provisioned environment file."] }],
+    modes: [{ id: "docker-compose", displayName: "Versioned Docker Compose over SSH", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Requires an image pinned by digest, a non-root SSH user, strict host-key verification, and a pre-provisioned environment file. Rollback reuses the preceding versioned Compose release."] }],
     notes: ["Rootless Docker is preferred. Vibecore does not install Docker or provision secret values on the host."],
   },
 ];

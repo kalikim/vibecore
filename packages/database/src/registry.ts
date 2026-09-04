@@ -26,32 +26,33 @@ const adapters: DatabaseAdapterMetadata[] = [
     validate: ["implemented", "Read-only Prisma validation, status, and drift checks."],
     "local-runtime": ["implemented", "Project-scoped Docker Compose lifecycle."],
     provision: ["planned", "Managed provisioning belongs to provider adapters."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
-    backup: ["planned", "Backup evidence and restore verification are pending."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma, Drizzle, TypeORM, or MikroORM migrate."],
+    backup: ["implemented", "pg_dump custom-format backups with checksum evidence."],
   }),
   engine("mysql", "MySQL", {
     detect: ["implemented", "Detected when Prisma declares the mysql provider."],
     inspect: ["implemented", "Prisma migration SQL can be inspected offline."],
     validate: ["implemented", "Read-only Prisma CLI checks are available."],
     "local-runtime": ["planned", "A Compose runtime adapter is planned."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
-    backup: ["planned", "Backup evidence and restore verification are pending."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma, Drizzle, TypeORM, or MikroORM migrate."],
+    backup: ["implemented", "mysqldump backups use a temporary defaults file; passwords are never CLI arguments."],
   }),
   engine("mariadb", "MariaDB", {
     detect: ["implemented", "Resolved from explicit resource configuration; Prisma uses its mysql connector."],
     inspect: ["implemented", "MySQL-compatible Prisma migration SQL can be inspected offline."],
     validate: ["implemented", "Read-only checks use Prisma's mysql connector."],
     "local-runtime": ["planned", "A Compose runtime adapter is planned."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
-    backup: ["planned", "Backup evidence and restore verification are pending."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma, Drizzle, TypeORM, or MikroORM migrate."],
+    backup: ["implemented", "mysqldump backups use a temporary defaults file; passwords are never CLI arguments."],
   }),
   engine("mongodb", "MongoDB", {
     detect: ["implemented", "Detected when Prisma or Mongoose declares MongoDB usage."],
-    inspect: ["planned", "Native collection, validator, and index inspection is pending."],
+    inspect: ["implemented", "Declarative JSON migration files are checksummed and risk classified."],
     validate: ["implemented", "Prisma schema validation works; Prisma Migrate does not."],
     "local-runtime": ["planned", "A replica-set capable local adapter is planned."],
     provision: ["planned", "Provisioning belongs to MongoDB Atlas or another provider adapter."],
-    backup: ["planned", "Provider-aware snapshot evidence is pending."],
+    "deploy-migrations": ["implemented", "Exact-approved mongosh JSON operations or MikroORM migration:up."],
+    backup: ["implemented", "mongodump archive backups using MONGODB_URI in the process environment."],
   }),
   engine("redis", "Redis", {
     detect: ["implemented", "Detected through manifests and Compose services."],
@@ -66,15 +67,15 @@ const adapters: DatabaseAdapterMetadata[] = [
     inspect: ["implemented", "Prisma migration SQL can be inspected offline."],
     validate: ["implemented", "Read-only Prisma CLI checks are available."],
     "local-runtime": ["implemented", "SQLite runs as a repository-scoped file without a service container."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
-    backup: ["planned", "Atomic file backup evidence is pending."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma, Drizzle, TypeORM, or MikroORM migrate."],
+    backup: ["implemented", "Repository-relative SQLite file copy with checksum evidence."],
   }),
   engine("sqlserver", "Microsoft SQL Server", {
     detect: ["implemented", "Detected when Prisma declares the sqlserver provider."],
     inspect: ["implemented", "Prisma migration SQL can be inspected offline."],
     validate: ["implemented", "Read-only Prisma CLI checks are available."],
     "local-runtime": ["planned", "A Compose runtime adapter is planned."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma migrate deploy or TypeORM migration:run."],
     backup: ["planned", "Backup evidence and restore verification are pending."],
   }),
   engine("cockroachdb", "CockroachDB", {
@@ -83,19 +84,40 @@ const adapters: DatabaseAdapterMetadata[] = [
     validate: ["implemented", "Read-only Prisma CLI checks are available."],
     "local-runtime": ["planned", "A local cluster adapter is planned."],
     provision: ["planned", "A managed provider adapter is planned."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is not implemented."],
+    "deploy-migrations": ["implemented", "Exact-approved Prisma migrate deploy."],
     backup: ["planned", "Backup evidence and restore verification are pending."],
   }),
   tool("prisma", "Prisma", ["postgresql", "mysql", "mariadb", "sqlite", "sqlserver", "cockroachdb", "mongodb"], {
     detect: ["implemented", "Detected from dependencies and schema.prisma."],
     inspect: ["implemented", "Migration SQL is checksummed and risk classified."],
     validate: ["implemented", "Schema, migration status, and relational drift checks are read-only."],
-    "deploy-migrations": ["planned", "No migration write command is currently exposed."],
+    "deploy-migrations": ["implemented", "prisma migrate deploy after exact digest approval."],
+    backup: ["implemented", "Backup and restore are delegated to the engine adapter."],
   }),
-  tool("drizzle", "Drizzle ORM", ["postgresql", "mysql", "sqlite"], plannedTool("Detected from drizzle-orm or drizzle-kit dependencies.")),
-  tool("typeorm", "TypeORM", ["postgresql", "mysql", "mariadb", "sqlite", "sqlserver", "mongodb"], plannedTool("Detected from the typeorm dependency.")),
-  tool("mikro-orm", "MikroORM", ["postgresql", "mysql", "mariadb", "sqlite", "mongodb"], plannedTool("Detected from @mikro-orm packages.")),
-  tool("mongoose", "Mongoose", ["mongodb"], plannedTool("Detected from the mongoose dependency.")),
+  tool("drizzle", "Drizzle ORM", ["postgresql", "mysql", "sqlite"], {
+    detect: ["implemented", "Detected from drizzle-orm or drizzle-kit dependencies."],
+    inspect: ["implemented", "SQL files and timestamped migration.sql directories are classified."],
+    validate: ["planned", "Live Drizzle validation remains pending."],
+    "deploy-migrations": ["implemented", "drizzle-kit migrate after exact digest approval."],
+  }),
+  tool("typeorm", "TypeORM", ["postgresql", "mysql", "mariadb", "sqlite", "sqlserver", "mongodb"], {
+    detect: ["implemented", "Detected from the typeorm dependency."],
+    inspect: ["implemented", "SQL files and query() fragments are classified; unparsed TypeScript requires review."],
+    validate: ["planned", "Live TypeORM validation remains pending."],
+    "deploy-migrations": ["implemented", "typeorm migration:run -d <datasource> after exact digest approval. schema:sync and migration:revert are not wrapped."],
+  }),
+  tool("mikro-orm", "MikroORM", ["postgresql", "mysql", "mariadb", "sqlite", "mongodb"], {
+    detect: ["implemented", "Detected from @mikro-orm packages."],
+    inspect: ["implemented", "SQL files and addSql() fragments are classified; unparsed TypeScript requires review."],
+    validate: ["planned", "Live MikroORM validation remains pending."],
+    "deploy-migrations": ["implemented", "mikro-orm migration:up after exact digest approval. migration:down is not wrapped."],
+  }),
+  tool("mongoose", "Mongoose", ["mongodb"], {
+    detect: ["implemented", "Detected from the mongoose dependency."],
+    inspect: ["implemented", "Declarative JSON migrations are classified using the MongoDB operation allowlist."],
+    validate: ["planned", "Live Mongoose validation remains pending."],
+    "deploy-migrations": ["planned", "Use the mongodb tooling adapter to apply declarative JSON operations."],
+  }),
   provider("supabase", "Supabase", ["postgresql"], ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "DATABASE_URL"], "https://supabase.com/docs", true),
   provider("neon", "Neon", ["postgresql"], ["DATABASE_URL", "NEON_API_KEY", "NEON_PROJECT_ID"], "https://neon.com/docs", true),
   provider("mongodb-atlas", "MongoDB Atlas", ["mongodb"], ["MONGODB_URI", "ATLAS_PUBLIC_KEY", "ATLAS_PRIVATE_KEY"], "https://www.mongodb.com/docs/atlas/", false),
@@ -110,15 +132,6 @@ function engine(id: string, displayName: string, values: Partial<Record<Database
 
 function tool(id: string, displayName: string, engines: string[], values: Partial<Record<DatabaseCapability, [CapabilitySupport, string]>>): DatabaseAdapterMetadata {
   return { id, displayName, kind: "tool", engines, capabilities: capabilities(values) };
-}
-
-function plannedTool(detectionNote: string): Partial<Record<DatabaseCapability, [CapabilitySupport, string]>> {
-  return {
-    detect: ["implemented", detectionNote],
-    inspect: ["planned", "Native migration inspection is planned."],
-    validate: ["planned", "Read-only tool validation is planned."],
-    "deploy-migrations": ["planned", "Approval-controlled migration execution is planned."],
-  };
 }
 
 function provider(id: string, displayName: string, engines: string[], environmentVariables: string[], documentationUrl: string, branching: boolean): DatabaseAdapterMetadata {

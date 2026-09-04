@@ -20,6 +20,81 @@ export async function inspectDrizzleMigrations(rootInput: string, pathInput = "d
   return inspection("drizzle", relative(root, directory), migrations, diagnostics);
 }
 
+export async function inspectTypeOrmMigrations(rootInput: string, pathInput = "src/migrations"): Promise<DatabaseToolInspection> {
+  return inspectScriptMigrations(rootInput, pathInput, "typeorm", [".query(", "queryRunner.query("]);
+}
+
+export async function inspectMikroOrmMigrations(rootInput: string, pathInput = "src/migrations"): Promise<DatabaseToolInspection> {
+  return inspectScriptMigrations(rootInput, pathInput, "mikro-orm", [".addSql(", "this.addSql("]);
+}
+
+export async function inspectMongooseMigrations(rootInput: string, pathInput = "migrations/mongoose"): Promise<DatabaseToolInspection> {
+  try {
+    const result = await inspectMongoMigrations(rootInput, pathInput);
+    return { ...result, tool: "mongoose" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      tool: "mongoose",
+      path: pathInput,
+      migrations: [],
+      risk: "review",
+      diagnostics: [{ code: "database.mongoose.no_migrations", severity: "info", component: "mongoose", message: `No declarative Mongoose/MongoJSON migrations were found at ${pathInput}. ${message}` }],
+    };
+  }
+}
+
+async function inspectScriptMigrations(rootInput: string, pathInput: string, tool: "typeorm" | "mikro-orm", markers: string[]): Promise<DatabaseToolInspection> {
+  const root = await realpath(rootInput);
+  const directory = await inside(root, pathInput);
+  const entries = (await readdir(directory, { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && /\.(sql|ts|js)$/.test(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const migrations: DatabaseMigrationInspection[] = [];
+  for (const entry of entries) {
+    const file = join(directory, entry.name);
+    const source = await readFile(file, "utf8");
+    const sql = entry.name.endsWith(".sql") ? source : extractSqlFragments(source, markers).join(";\n");
+    const findings = sql.trim()
+      ? assessMigrationSql(sql)
+      : [finding("review", "database.migration.unparsed_script", `${tool} TypeScript/JavaScript migrations with no extractable SQL require manual review`, entry.name)];
+    migrations.push(migration(entry.name, relative(root, file), source, findings));
+  }
+  const diagnostics: Diagnostic[] = entries.length ? [] : [{ code: `database.${tool.replace("-", "")}.no_migrations`, severity: "info", component: tool, message: `No ${tool} migration files were found.` }];
+  return inspection(tool, relative(root, directory), migrations, diagnostics);
+}
+
+function extractSqlFragments(source: string, markers: string[]): string[] {
+  const fragments: string[] = [];
+  for (const marker of markers) {
+    let index = 0;
+    while (index < source.length) {
+      const start = source.indexOf(marker, index);
+      if (start === -1) break;
+      const open = source.indexOf("(", start);
+      if (open === -1) break;
+      const quote = source[open + 1];
+      if (quote !== "`" && quote !== "'" && quote !== '"') { index = open + 1; continue; }
+      const { text, next } = readQuoted(source, open + 1, quote);
+      if (text.trim()) fragments.push(text);
+      index = next;
+    }
+  }
+  return fragments;
+}
+
+function readQuoted(source: string, start: number, quote: string): { text: string; next: number } {
+  let text = "";
+  for (let index = start + 1; index < source.length; index += 1) {
+    const char = source[index] ?? "";
+    if (char === "\\" && quote !== "`") { text += source[index + 1] ?? ""; index += 1; continue; }
+    if (quote === "`" && char === "\\" && source[index + 1] === "`") { text += "`"; index += 1; continue; }
+    if (char === quote) return { text, next: index + 1 };
+    text += char;
+  }
+  return { text, next: source.length };
+}
+
 export async function inspectMongoMigrations(rootInput: string, pathInput = "migrations/mongodb"): Promise<DatabaseToolInspection> {
   const root = await realpath(rootInput);
   const directory = await inside(root, pathInput);

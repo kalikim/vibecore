@@ -8,6 +8,9 @@ describe("database adapter registry", () => {
     ]);
     expect(getDatabaseAdapter("supabase")).toMatchObject({ kind: "provider", engines: ["postgresql"] });
     expect(getDatabaseAdapter("neon")?.capabilities.find(({ capability }) => capability === "provision")?.support).toBe("planned");
+    expect(getDatabaseAdapter("typeorm")?.capabilities.find(({ capability }) => capability === "deploy-migrations")?.support).toBe("implemented");
+    expect(getDatabaseAdapter("mikro-orm")?.capabilities.find(({ capability }) => capability === "deploy-migrations")?.support).toBe("implemented");
+    expect(getDatabaseAdapter("mongoose")?.capabilities.find(({ capability }) => capability === "deploy-migrations")?.support).toBe("planned");
   });
 
   it("resolves compatible stacks and rejects invalid combinations", () => {

@@ -405,6 +405,9 @@ async function detectResources(
       ],
       config: { orm: "prisma" },
     });
+  } else {
+    const orm = detectOrm(root, packages);
+    if (orm) resources.push(orm);
   }
 
   const composeFile = await firstExisting(root, ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"]);
@@ -419,6 +422,28 @@ async function detectResources(
   }
 
   return resources;
+}
+
+function detectOrm(root: string, packages: Array<{ file: string; document: PackageDocument }>): DetectedResource | undefined {
+  const signatures: Array<{ dependency: string; orm: string; type: DetectedResource["type"]; provider: string; detail: string }> = [
+    { dependency: "typeorm", orm: "typeorm", type: "sql", provider: "postgres", detail: "TypeORM dependency" },
+    { dependency: "@mikro-orm/core", orm: "mikro-orm", type: "sql", provider: "postgres", detail: "MikroORM dependency" },
+    { dependency: "mongoose", orm: "mongoose", type: "document", provider: "mongodb", detail: "Mongoose dependency" },
+    { dependency: "drizzle-orm", orm: "drizzle", type: "sql", provider: "postgres", detail: "Drizzle dependency" },
+  ];
+  for (const signature of signatures) {
+    const match = packages.find(({ document }) => signature.dependency in { ...document.dependencies, ...document.devDependencies });
+    if (!match) continue;
+    return {
+      name: "database",
+      type: signature.type,
+      provider: signature.provider,
+      confidence: "medium",
+      evidence: [{ source: toProjectPath(root, match.file), detail: signature.detail }],
+      config: { orm: signature.orm },
+    };
+  }
+  return undefined;
 }
 
 function parsePackageManager(value: string | undefined): PackageManager | undefined {

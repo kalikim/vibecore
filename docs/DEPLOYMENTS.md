@@ -105,9 +105,9 @@ the secret-free ledger, `vibe deploy verify-health` performs bounded HTTP checks
 without following redirects or storing response bodies, and `vibe deploy rollback`
 selects the preceding healthy immutable release and creates a tamper-evident plan.
 Self-hosted Docker, Railway, DigitalOcean App Platform, Azure App Service and
-Container Apps, and AWS S3/CloudFront, App Runner, and ECS Fargate can apply that
-plan through their executors. Droplet and shared-hosting remote execution remain
-pending.
+Container Apps, AWS S3/CloudFront, App Runner, and ECS Fargate, and shared-hosting
+SSH/SFTP can apply that plan through their executors. Droplet remote execution
+remains pending.
 
 ## Self-hosted Docker execution
 
@@ -139,6 +139,33 @@ vibe deploy self-hosted-rollback --release <failed-release-id> \
   --host app.example.com --user vibecore \
   --remote-root /opt/vibecore/my-project \
   --health-url https://app.example.com/health \
+  --ssh-key /absolute/key/path --approve <rollback-digest>
+```
+
+## Shared-hosting execution
+
+Shared-hosting static and PHP forward deployment and rollback are implemented over
+SSH/SFTP. The host must already have a pinned host key, a non-root deployment user,
+and an application-scoped directory that can hold versioned releases plus a
+`current` symlink.
+
+Vibecore copies the static output directory (`static-sftp`) or the application path
+(`php-sftp`) into `<remote-root>/releases/<sha>/`, refuses to replace `current` when
+it is a real directory, then atomically repoints the symlink. Health is verified on
+the public URL after the switch. Plain FTP, password authentication, root SSH, and
+in-place live-tree overwrites are refused.
+
+```sh
+vibe deploy shared-hosting --application web --environment staging \
+  --revision <git-sha> --mode static-sftp \
+  --host host.example.com --user deploy \
+  --remote-root /home/deploy/site \
+  --health-url https://site.example.com/health
+
+vibe deploy shared-hosting-rollback --release <failed-release-id> \
+  --host host.example.com --user deploy \
+  --remote-root /home/deploy/site \
+  --health-url https://site.example.com/health \
   --ssh-key /absolute/key/path --approve <rollback-digest>
 ```
 

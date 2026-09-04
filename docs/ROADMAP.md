@@ -47,15 +47,20 @@ Status: Started with project graph, immutable plans, policy evaluation, local st
 the guarded adoption executor, local process supervision, environment contracts,
 project-scoped Docker Compose lifecycle management, and read-only Prisma migration
 inspection. The database registry now separates engine, tooling, and hosted-provider
-capabilities, including Supabase and Neon adapter definitions. Migration execution
-and authenticated provider operations remain pending. Read-only environment and
-compatibility diagnostics cover Supabase, Neon, MongoDB Atlas, PlanetScale, Upstash,
-and Railway. Local Compose model generation covers PostgreSQL, MySQL, MariaDB,
-MongoDB, and Redis with loopback-only ports, credential references, persistence,
-and health checks.
-Offline tooling inspection now covers Prisma SQL, Drizzle SQL, and declarative
-MongoDB operations. TypeORM, MikroORM, and framework-native Mongoose discovery remain
-pending.
+capabilities, including Supabase and Neon adapter definitions. Exact-approved Prisma,
+Drizzle, and declarative MongoDB migration execution is implemented, with production
+destructive changes requiring a verified backup checksum. Engine backup and restore
+cover PostgreSQL, MySQL/MariaDB, SQLite, and MongoDB without putting credentials in
+command arguments. Authenticated hosted-provider provisioning remains pending.
+Read-only environment and compatibility diagnostics cover Supabase, Neon, MongoDB
+Atlas, PlanetScale, Upstash, and Railway. Local Compose model generation covers
+PostgreSQL, MySQL, MariaDB, MongoDB, and Redis with loopback-only ports, credential
+references, persistence, and health checks.
+Offline tooling inspection covers Prisma SQL, Drizzle SQL, TypeORM and MikroORM
+SQL fragments, and declarative MongoDB/Mongoose JSON operations. Exact-approved
+TypeORM `migration:run` and MikroORM `migration:up` wrappers are implemented;
+`schema:sync`, `migration:revert`, and `migration:down` are refused. Mongoose
+execution still uses the declarative MongoDB JSON adapter.
 
 Deliverables:
 
@@ -135,8 +140,14 @@ AWS forward deployment and rollback are implemented for existing S3/CloudFront,
 App Runner, and ECS Fargate resources using the current AWS CLI identity. Static
 releases use a versioned S3 prefix and CloudFront origin-path retargeting. Container
 releases require digest-pinned images, disabled App Runner auto-deploy, and private
-Fargate networking. Access keys are refused as command arguments. Droplet and
-shared-hosting remote execution remain pending.
+Fargate networking. Access keys are refused as command arguments. Shared-hosting
+static and PHP SSH/SFTP execution is implemented with versioned release directories,
+atomic `current` symlinks, and exact-approved rollback. Live-tree overwrites, FTP,
+passwords, and root SSH are refused. Droplet remote execution remains pending.
+Database backup, restore, seed, and exact-approved migrate are implemented for
+Prisma, Drizzle, TypeORM, MikroORM, and declarative MongoDB JSON operations.
+Production destructive migrations require a verified backup checksum. Mongoose
+remains inspect-only and shares the MongoDB JSON apply path.
 
 Deliverables:
 

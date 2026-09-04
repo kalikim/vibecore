@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -60,5 +60,12 @@ describe("scanRepository", () => {
     expect(proposal.environments.production?.production).toBe(true);
     expect(proposal.applications.web?.commands?.build).toBe("pnpm build");
     expect(proposal.policies?.requirePlan).toBe(true);
+  });
+
+  it("detects TypeORM, MikroORM, Mongoose, and Drizzle when Prisma is absent", async () => {
+    const root = await mkdtemp(resolve(tmpdir(), "vibecore-orm-detect-"));
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "orm-app", dependencies: { typeorm: "0.3.0" } }));
+    const scan = await scanRepository(root);
+    expect(scan.resources.find(({ name }) => name === "database")).toMatchObject({ config: { orm: "typeorm" }, provider: "postgres" });
   });
 });

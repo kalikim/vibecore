@@ -91,6 +91,9 @@ importers:
       '@vibecore/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@vibecore/planner':
+        specifier: workspace:*
+        version: link:../planner
       yaml:
         specifier: ^2.8.0
         version: 2.9.0

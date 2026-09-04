@@ -425,10 +425,44 @@ export interface DatabaseStackDiagnosticResult {
   diagnostics: Diagnostic[];
 }
 
+export type DatabaseToolName = "prisma" | "drizzle" | "mongodb" | "typeorm" | "mikro-orm" | "mongoose";
+export type DatabaseOperation = "migrate" | "seed" | "backup" | "restore";
+
 export interface DatabaseToolInspection {
-  tool: "drizzle" | "mongodb";
+  tool: Exclude<DatabaseToolName, "prisma">;
   path: string;
   migrations: DatabaseMigrationInspection[];
   risk: DatabaseMigrationRisk;
   diagnostics: Diagnostic[];
+}
+
+export interface DatabaseCommandSpec {
+  executable: string;
+  args: string[];
+}
+
+export interface DatabaseBackupEvidence {
+  path: string;
+  checksum: string;
+  engine: string;
+  createdAt: string;
+  bytes: number;
+}
+
+export interface DatabaseOperationPlan {
+  operation: DatabaseOperation;
+  engine: string;
+  environment: string;
+  risk: DatabaseMigrationRisk;
+  urlVariableName: string;
+  requiredSecretNames: string[];
+  tool?: DatabaseToolName;
+  schemaPath?: string;
+  migrationsPath?: string;
+  migrationChecksums?: Array<{ name: string; checksum: string }>;
+  backupPath?: string;
+  backupChecksum?: string;
+  allowDestructive?: boolean;
+  command?: DatabaseCommandSpec;
+  digest: string;
 }

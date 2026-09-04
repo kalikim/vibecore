@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
-import type { Diagnostic } from "@vibecore/contracts";
+import type { DatabaseOperationPlan, Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
 import { createManifestProposal, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
@@ -11,9 +11,9 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type SharedHostingMode } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
-import { buildLocalDatabaseCompose, diagnoseDatabaseStack, inspectDrizzleMigrations, inspectMongoMigrations, inspectPrismaDatabase, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
+import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, inspectDrizzleMigrations, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
 
 const program = new Command()
@@ -602,6 +602,77 @@ deploy.command("aws-rollback")
     } catch (error) { printDeploymentError("deployment.aws_rollback_failed", error, options.json ?? false); }
   });
 
+deploy.command("shared-hosting")
+  .description("Plan or upload a versioned static or PHP release over SSH/SFTP")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision")
+  .requiredOption("--mode <mode>", "static-sftp or php-sftp")
+  .requiredOption("--host <host>", "SSH hostname with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--remote-root <path>", "versioned remote deployment root")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .option("--apply", "execute the exact-approved plan over SSH")
+  .option("--approve <digest>", "approve the exact deployment plan digest")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; mode: string; host: string; user: string; remoteRoot: string; healthUrl: string; environment: string; manifest: string; sshKey?: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.mode !== "static-sftp" && options.mode !== "php-sftp") throw new Error("Shared hosting mode must be static-sftp or php-sftp");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createSharedHostingPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, mode: options.mode as SharedHostingMode, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(`Target: ${plan.user}@${plan.host}:${plan.remoteRoot}`);
+          console.log(`Source: ${plan.sourceDirectory} @ ${plan.sourceRevision}`);
+          console.log(`Required secret names: ${plan.requiredSecretNames.join(", ") || "none"}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No remote command was run.");
+        }
+        return;
+      }
+      if (!options.approve || !options.sshKey) {
+        if (options.json) printJson({ plan });
+        else console.log(`Review the plan, then apply it with:\n  vibe deploy shared-hosting --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --mode ${plan.mode} --host ${plan.host} --user ${plan.user} --remote-root ${plan.remoteRoot} --health-url ${plan.healthUrl} --ssh-key /absolute/path --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+        process.exitCode = 2;
+        return;
+      }
+      const result = await executeSharedHostingPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Recorded ${result.release.id} as ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.shared_hosting_failed", error, options.json ?? false); }
+  });
+
+deploy.command("shared-hosting-rollback")
+  .description("Apply an exact-approved rollback by repointing the remote current symlink")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--host <host>", "SSH hostname with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--remote-root <path>", "versioned remote deployment root")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; host: string; user: string; remoteRoot: string; healthUrl: string; sshKey: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd());
+      const releases = await store.releases();
+      const plan = createRollbackPlan(releases, options.release);
+      const result = await executeSharedHostingRollback(plan, releases, { approval: options.approve, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed);
+      await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.shared_hosting_rollback_failed", error, options.json ?? false); }
+  });
+
 const github = program.command("github").description("Plan secure GitHub repository automation");
 
 github.command("setup")
@@ -689,7 +760,7 @@ github.command("secrets")
     } catch (error) { const message = error instanceof Error ? error.message : String(error); printDiagnostics([{ code: "github.secrets_failed", severity: "error", component: "github", message }], options.json ?? false); process.exitCode = 1; }
   });
 
-const database = program.command("db").description("Inspect Prisma schema and migration safety without modifying a database");
+const database = program.command("db").description("Inspect, migrate, seed, backup, and restore databases through exact-approved plans");
 
 database
   .command("support")
@@ -755,17 +826,18 @@ database
 
 database
   .command("inspect-tool")
-  .description("Inspect Drizzle SQL or declarative MongoDB migrations offline")
-  .requiredOption("--tool <tool>", "drizzle or mongodb")
+  .description("Inspect Drizzle, TypeORM, MikroORM, Mongoose, or declarative MongoDB migrations offline")
+  .requiredOption("--tool <tool>", "drizzle, mongodb, typeorm, mikro-orm, or mongoose")
   .option("--path <path>", "migration directory")
   .option("--json", "print machine-readable JSON")
   .action(async (options: { tool: string; path?: string; json?: boolean }) => {
     try {
-      const result = options.tool === "drizzle"
-        ? await inspectDrizzleMigrations(process.cwd(), options.path ?? "drizzle")
-        : options.tool === "mongodb"
-          ? await inspectMongoMigrations(process.cwd(), options.path ?? "migrations/mongodb")
-          : (() => { throw new Error(`Unknown tooling adapter ${JSON.stringify(options.tool)}; expected drizzle or mongodb`); })();
+      const result = options.tool === "drizzle" ? await inspectDrizzleMigrations(process.cwd(), options.path ?? "drizzle")
+        : options.tool === "mongodb" ? await inspectMongoMigrations(process.cwd(), options.path ?? "migrations/mongodb")
+        : options.tool === "typeorm" ? await inspectTypeOrmMigrations(process.cwd(), options.path ?? "src/migrations")
+        : options.tool === "mikro-orm" ? await inspectMikroOrmMigrations(process.cwd(), options.path ?? "src/migrations")
+        : options.tool === "mongoose" ? await inspectMongooseMigrations(process.cwd(), options.path ?? "migrations/mongoose")
+        : (() => { throw new Error(`Unknown tooling adapter ${JSON.stringify(options.tool)}; expected drizzle, mongodb, typeorm, mikro-orm, or mongoose`); })();
       if (options.json) printJson(result);
       else {
         console.log(`${result.tool} migrations: ${result.migrations.length}; overall risk: ${result.risk}`);
@@ -831,6 +903,109 @@ database
     } catch (error) {
       printDatabaseError(error, options.json ?? false);
     }
+  });
+
+database
+  .command("migrate")
+  .description("Plan or apply exact-approved Prisma, Drizzle, TypeORM, MikroORM, or declarative MongoDB migrations")
+  .requiredOption("--tool <tool>", "prisma, drizzle, mongodb, typeorm, or mikro-orm")
+  .option("--engine <engine>", "database engine when not inferred from Prisma")
+  .option("-s, --schema <path>", "Prisma schema path", "prisma/schema.prisma")
+  .option("--datasource <path>", "TypeORM DataSource path", "src/data-source.ts")
+  .option("--config <path>", "MikroORM config path")
+  .option("--path <path>", "migration directory")
+  .option("-e, --environment <name>", "target environment", "dev")
+  .option("--allow-destructive", "include destructive statements in the approved plan")
+  .option("--backup-checksum <sha256>", "verified backup checksum required for production destructive migrations")
+  .option("--apply", "execute the exact-approved plan")
+  .option("--approve <digest>", "approve the exact migration plan digest")
+  .option("--production-approved", "separately approve a production migration")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { tool: string; engine?: string; schema: string; datasource: string; config?: string; path?: string; environment: string; allowDestructive?: boolean; backupChecksum?: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.tool !== "prisma" && options.tool !== "drizzle" && options.tool !== "mongodb" && options.tool !== "typeorm" && options.tool !== "mikro-orm") {
+        throw new Error("Migration execution supports prisma, drizzle, mongodb, typeorm, or mikro-orm");
+      }
+      const inspected = options.tool === "prisma"
+        ? await inspectPrismaDatabase(process.cwd(), options.schema)
+        : options.tool === "drizzle"
+          ? await inspectDrizzleMigrations(process.cwd(), options.path ?? "drizzle")
+          : options.tool === "typeorm"
+            ? await inspectTypeOrmMigrations(process.cwd(), options.path ?? "src/migrations")
+            : options.tool === "mikro-orm"
+              ? await inspectMikroOrmMigrations(process.cwd(), options.path ?? "src/migrations")
+              : await inspectMongoMigrations(process.cwd(), options.path ?? "migrations/mongodb");
+      const engine = options.tool === "prisma" ? ("provider" in inspected ? inspected.provider : "postgresql") : (options.engine ?? (options.tool === "mongodb" ? "mongodb" : "postgresql"));
+      const migrationsPath = "migrationsPath" in inspected ? inspected.migrationsPath : inspected.path;
+      const schemaPath = options.tool === "prisma"
+        ? ("schemaPath" in inspected ? inspected.schemaPath : undefined)
+        : options.tool === "typeorm"
+          ? options.datasource
+          : options.tool === "mikro-orm"
+            ? options.config
+            : undefined;
+      const plan = createDatabaseMigratePlan({
+        tool: options.tool, engine, environment: options.environment, risk: inspected.risk, migrationsPath,
+        migrationChecksums: inspected.migrations.map(({ name, checksum }) => ({ name, checksum })),
+        ...(schemaPath ? { schemaPath } : {}), ...(options.allowDestructive ? { allowDestructive: true } : {}),
+        ...(options.backupChecksum ? { backupChecksum: options.backupChecksum } : {}),
+      });
+      await runDatabasePlan(plan, options);
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
+  });
+
+database
+  .command("seed")
+  .description("Plan or apply an exact-approved Prisma database seed")
+  .option("-s, --schema <path>", "Prisma schema path", "prisma/schema.prisma")
+  .option("--engine <engine>", "database engine", "postgresql")
+  .option("-e, --environment <name>", "target environment", "dev")
+  .option("--apply", "execute the exact-approved plan")
+  .option("--approve <digest>", "approve the exact seed plan digest")
+  .option("--production-approved", "separately approve a production seed")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { schema: string; engine: string; environment: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const plan = createDatabaseSeedPlan({ environment: options.environment, engine: options.engine, schemaPath: options.schema });
+      await runDatabasePlan(plan, options);
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
+  });
+
+database
+  .command("backup")
+  .description("Plan or create a checksummed database backup without putting credentials in arguments")
+  .requiredOption("--engine <engine>", "postgresql, mysql, mariadb, sqlite, or mongodb")
+  .option("-e, --environment <name>", "target environment", "dev")
+  .option("--url-variable <name>", "environment variable holding the connection URL")
+  .option("--apply", "execute the exact-approved plan")
+  .option("--approve <digest>", "approve the exact backup plan digest")
+  .option("--production-approved", "separately approve a production backup")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { engine: string; environment: string; urlVariable?: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const plan = createDatabaseBackupPlan({ engine: options.engine, environment: options.environment, ...(options.urlVariable ? { urlVariableName: options.urlVariable } : {}) });
+      await runDatabasePlan(plan, options);
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
+  });
+
+database
+  .command("restore")
+  .description("Plan or restore a checksummed backup; production requires separate approval")
+  .requiredOption("--engine <engine>", "postgresql, mysql, mariadb, sqlite, or mongodb")
+  .requiredOption("--backup <path>", "repository-relative backup file")
+  .requiredOption("--backup-checksum <sha256>", "SHA-256 of the backup file")
+  .option("-e, --environment <name>", "target environment", "dev")
+  .option("--url-variable <name>", "environment variable holding the connection URL")
+  .option("--allow-destructive", "include restore in the approved plan")
+  .option("--apply", "execute the exact-approved plan")
+  .option("--approve <digest>", "approve the exact restore plan digest")
+  .option("--production-approved", "separately approve a production restore")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { engine: string; backup: string; backupChecksum: string; environment: string; urlVariable?: string; allowDestructive?: boolean; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const plan = createDatabaseRestorePlan({ engine: options.engine, environment: options.environment, backupPath: options.backup, backupChecksum: options.backupChecksum, ...(options.urlVariable ? { urlVariableName: options.urlVariable } : {}), ...(options.allowDestructive ? { allowDestructive: true } : {}) });
+      await runDatabasePlan(plan, options);
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
   });
 
 await program.parseAsync();
@@ -903,6 +1078,33 @@ function riskSymbol(risk: string): string {
 
 function supportSymbol(support: string): string {
   return support === "implemented" ? "✓" : "○";
+}
+
+async function runDatabasePlan(plan: DatabaseOperationPlan, options: { apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }): Promise<void> {
+  if (!options.apply) {
+    if (options.json) printJson({ plan });
+    else {
+      console.log(`Operation: ${plan.operation}  engine: ${plan.engine}  environment: ${plan.environment}  risk: ${plan.risk}`);
+      console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`);
+      if (plan.command) console.log(`Command: ${plan.command.executable} ${plan.command.args.join(" ")}`);
+      console.log(`Plan digest: ${plan.digest}`);
+      console.log("No database was changed.");
+    }
+    return;
+  }
+  if (!options.approve) {
+    if (options.json) printJson({ plan });
+    else console.log(`Review the plan, then apply it with --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+    process.exitCode = 2;
+    return;
+  }
+  const result = await executeDatabaseOperationPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), productionApproved: options.productionApproved ?? false });
+  if (options.json) printJson({ plan, result });
+  else {
+    console.log(`✓ ${plan.operation} ${result.status}`);
+    if (result.backup) console.log(`Backup: ${result.backup.path}  checksum ${result.backup.checksum}`);
+    if (result.output) console.log(result.output);
+  }
 }
 
 function printDatabaseError(error: unknown, json: boolean): void {
