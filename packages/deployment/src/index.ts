@@ -10,6 +10,7 @@ export * from "./digitalocean.js";
 export * from "./azure.js";
 export * from "./aws.js";
 export * from "./shared-hosting.js";
+export * from "./droplet.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
@@ -47,8 +48,8 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
     modes: [
       { id: "app-platform", displayName: "App Platform Git source", workloads: ["static", "node", "python", "go", "php"], source: "git", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing GitHub-backed apps deploy through an exact-approved branch revision; historical rollback uses DigitalOcean's validated rollback API."] },
       { id: "app-platform-image", displayName: "App Platform container image", workloads: ["container"], source: "container-image", configure: "planned", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Digest-pinned container image execution is a separate pending adapter."] },
-      { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "planned", rollback: "planned", notes: ["Lower-level server deployment; patching and hardening remain the operator's responsibility."] },
-    ], notes: ["Droplet support will require SSH host-key verification and non-root deployment users."],
+      { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Existing active droplets receive a versioned Compose release over SSH after doctl confirms the droplet identity. Images must be digest-pinned. Vibecore does not create, patch, or firewall the Droplet."] },
+    ], notes: ["Droplet execution uses a non-root SSH user, strict host-key verification, and a pre-provisioned environment file. Cloud-init is a bootstrap artifact only."],
   },
   {
     id: "shared-hosting", displayName: "Shared hosting", kind: "shared-hosting", costProfiles: ["low-cost"], credentialNames: ["DEPLOY_HOST", "DEPLOY_USER", "DEPLOY_SSH_PRIVATE_KEY", "DEPLOY_PATH"],

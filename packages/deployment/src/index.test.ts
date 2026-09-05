@@ -14,6 +14,8 @@ describe("deployment provider registry", () => {
     expect(listDeploymentProviders().map(({ id }) => id)).toEqual(["vercel", "railway", "aws", "azure", "digitalocean", "shared-hosting", "self-hosted"]);
     expect(getDeploymentProvider("do")?.id).toBe("digitalocean");
     expect(getDeploymentProvider("aws")?.modes.find(({ id }) => id === "s3-cloudfront")?.deploy).toBe("implemented");
+    expect(getDeploymentProvider("digitalocean")?.modes.find(({ id }) => id === "droplet")?.deploy).toBe("implemented");
+    expect(getDeploymentProvider("digitalocean")?.modes.find(({ id }) => id === "droplet")?.rollback).toBe("implemented");
     expect(getDeploymentProvider("shared-hosting")?.modes.find(({ id }) => id === "static-sftp")?.deploy).toBe("implemented");
     expect(getDeploymentProvider("shared-hosting")?.modes.find(({ id }) => id === "php-sftp")?.rollback).toBe("implemented");
     expect(getDeploymentProvider("self-hosted")?.modes[0]).toMatchObject({ configure: "implemented", deploy: "implemented", rollback: "implemented" });

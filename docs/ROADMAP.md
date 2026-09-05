@@ -128,8 +128,11 @@ executors, backup hooks, and interrupted remote-deployment reconciliation remain
 DigitalOcean App Platform forward deployment is implemented for existing GitHub-backed
 apps with automatic deployment disabled, local and remote revision verification,
 temporary token isolation, provider deployment ID recording, external health gating,
-and validated historical rollback through the official API. Digest-pinned App Platform
-container images and Droplet execution remain pending.
+and validated historical rollback through the official API. Existing Droplet
+execution is implemented: doctl confirms the droplet is active and matches the
+approved host, then a digest-pinned Compose release is applied over strict SSH.
+Vibecore does not create, patch, or firewall Droplets. Digest-pinned App Platform
+container images remain pending.
 Azure forward deployment is implemented for existing App Service, Container Apps, and
 disconnected Static Web Apps using the current `az` identity. App Service zip-deploys
 an approved git archive, Container Apps shift traffic onto a digest-pinned revision,
@@ -143,7 +146,7 @@ releases require digest-pinned images, disabled App Runner auto-deploy, and priv
 Fargate networking. Access keys are refused as command arguments. Shared-hosting
 static and PHP SSH/SFTP execution is implemented with versioned release directories,
 atomic `current` symlinks, and exact-approved rollback. Live-tree overwrites, FTP,
-passwords, and root SSH are refused. Droplet remote execution remains pending.
+passwords, and root SSH are refused.
 Database backup, restore, seed, and exact-approved migrate are implemented for
 Prisma, Drizzle, TypeORM, MikroORM, and declarative MongoDB JSON operations.
 Production destructive migrations require a verified backup checksum. Mongoose

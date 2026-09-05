@@ -11,7 +11,7 @@ import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type SharedHostingMode } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type SharedHostingMode } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, inspectDrizzleMigrations, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 import type { DatabaseAdapterKind } from "@vibecore/contracts";
@@ -491,6 +491,80 @@ deploy.command("digitalocean-rollback")
       const token = process.env.DIGITALOCEAN_ACCESS_TOKEN; if (!token) throw new Error("Set DIGITALOCEAN_ACCESS_TOKEN in the current process"); const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release); const result = await executeDigitalOceanRollback(plan, releases, { approval: options.approve, token, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false }); await store.updateRelease(result.failed); await store.recordRelease(result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean rollback release ${result.release.id} is ${result.release.status}`); process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.digitalocean_rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("digitalocean-droplet")
+  .description("Plan or execute a versioned Docker Compose deployment on an existing DigitalOcean Droplet")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision")
+  .requiredOption("--droplet-id <id>", "existing DigitalOcean droplet ID")
+  .requiredOption("--host <host>", "droplet name or public address with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--remote-root <path>", "versioned remote deployment root")
+  .option("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .option("--apply", "execute the exact-approved plan")
+  .option("--approve <digest>", "approve the exact Droplet deployment plan digest")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; dropletId: string; host: string; user: string; healthUrl: string; environment: string; manifest: string; remoteRoot?: string; sshKey?: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createDigitalOceanDropletPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, dropletId: options.dropletId, host: options.host, user: options.user, healthUrl: options.healthUrl, ...(options.remoteRoot ? { remoteRoot: options.remoteRoot } : {}) });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(plan.compose);
+          console.log(`Droplet: ${plan.dropletId} @ ${plan.user}@${plan.host}`);
+          console.log(`Remote environment file: ${plan.remoteEnvironmentFile}`);
+          console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No DigitalOcean or SSH command was run.");
+        }
+        return;
+      }
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+      if (!options.approve || !token || !options.sshKey) {
+        if (options.json) printJson({ plan });
+        else console.log(`Set DIGITALOCEAN_ACCESS_TOKEN, then apply with:\n  vibe deploy digitalocean-droplet --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --droplet-id ${plan.dropletId} --host ${plan.host} --user ${plan.user} --health-url ${plan.healthUrl} --ssh-key /absolute/path --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+        process.exitCode = 2;
+        return;
+      }
+      const result = await executeDigitalOceanDropletPlan(plan, { approval: options.approve, token, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean Droplet release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.digitalocean_droplet_failed", error, options.json ?? false); }
+  });
+
+deploy.command("digitalocean-droplet-rollback")
+  .description("Apply an exact-approved Droplet rollback using a versioned remote Compose release")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--host <host>", "droplet name or public address with a pinned known-host entry")
+  .requiredOption("--user <user>", "non-root SSH deployment user")
+  .requiredOption("--remote-root <path>", "versioned remote deployment root")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--ssh-key <path>", "absolute private key path; never stored in the plan")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; host: string; user: string; remoteRoot: string; healthUrl: string; sshKey: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+      if (!token) throw new Error("Set DIGITALOCEAN_ACCESS_TOKEN in the current process");
+      const store = new FileStateStore(process.cwd());
+      const releases = await store.releases();
+      const plan = createRollbackPlan(releases, options.release);
+      const result = await executeDigitalOceanDropletRollback(plan, releases, { approval: options.approve, token, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed);
+      await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean Droplet rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.digitalocean_droplet_rollback_failed", error, options.json ?? false); }
   });
 
 deploy.command("azure")

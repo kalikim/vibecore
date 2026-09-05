@@ -104,10 +104,9 @@ The shared release lifecycle is implemented locally. `vibe deploy releases` read
 the secret-free ledger, `vibe deploy verify-health` performs bounded HTTP checks
 without following redirects or storing response bodies, and `vibe deploy rollback`
 selects the preceding healthy immutable release and creates a tamper-evident plan.
-Self-hosted Docker, Railway, DigitalOcean App Platform, Azure App Service and
-Container Apps, AWS S3/CloudFront, App Runner, and ECS Fargate, and shared-hosting
-SSH/SFTP can apply that plan through their executors. Droplet remote execution
-remains pending.
+Self-hosted Docker, Railway, DigitalOcean App Platform and Droplet, Azure App
+Service and Container Apps, AWS S3/CloudFront, App Runner, and ECS Fargate, and
+shared-hosting SSH/SFTP can apply that plan through their executors.
 
 ## Self-hosted Docker execution
 
@@ -234,6 +233,35 @@ vibe deploy digitalocean-rollback --release <failed-release-id> \
 The executor calls DigitalOcean's rollback validation endpoint before creating the
 historical rollback. Database data is not rolled back by App Platform and still
 requires a separate database backup and recovery workflow.
+
+## DigitalOcean Droplet execution
+
+Existing Droplet forward deployment and rollback are implemented. Vibecore does not
+create, resize, patch, or firewall Droplets. Cloud-init is a bootstrap artifact the
+operator applies when creating the server.
+
+The Droplet must already be `active` and must match the approved host name or public
+address. Docker Compose, a non-root SSH user, a pinned host key, and an environment
+file at `<remote-root>/environments/<environment>.env` are required. The application
+must declare a digest-pinned `config.deploymentImage`.
+
+```sh
+vibe deploy digitalocean-droplet --application api --environment staging \
+  --revision <git-sha> --droplet-id <droplet-id> \
+  --host 203.0.113.10 --user vibecore \
+  --health-url https://api.example.com/health
+
+vibe deploy digitalocean-droplet-rollback --release <failed-release-id> \
+  --host 203.0.113.10 --user vibecore \
+  --remote-root /opt/vibecore/my-project \
+  --health-url https://api.example.com/health \
+  --ssh-key /absolute/key/path --approve <rollback-digest>
+```
+
+`doctl` confirms droplet identity using a temporary mode-`0600` config file. The
+Compose release, pull, wait gate, health check, and `current` symlink follow the
+self-hosted Docker contract. Root SSH, password authentication, unknown host keys,
+and mutable image tags are refused.
 
 ## Azure execution
 

@@ -199,7 +199,7 @@ pnpm vibe deploy support --application web --json
     <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Configuration implemented</td></tr>
     <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Forward deployment and rollback implemented</td></tr>
     <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>App Service and Container Apps execution implemented; Static Web Apps artifact deploy implemented</td></tr>
-    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>App Platform forward deploy and rollback implemented; Droplet remains configuration-only</td></tr>
+    <tr><td>DigitalOcean</td><td>App Platform, Droplet</td><td>Low cost, usage based, infrastructure</td><td>App Platform and existing Droplet forward deploy and rollback implemented</td></tr>
     <tr><td>Shared hosting</td><td>Static or PHP artifact over SSH/SFTP</td><td>Low cost</td><td>Versioned upload and atomic-symlink rollback implemented</td></tr>
   </tbody>
 </table>
@@ -291,6 +291,26 @@ disabled. Review the plan, export `DIGITALOCEAN_ACCESS_TOKEN`, and repeat with
 path, and the remote branch revision before asking App Platform to deploy. The
 provider deployment ID is saved in the release ledger, enabling validated historical
 rollback through `vibe deploy digitalocean-rollback`.
+
+Deploy a digest-pinned container to an existing DigitalOcean Droplet over SSH:
+
+```sh
+pnpm vibe deploy digitalocean-droplet \
+  --application api \
+  --environment staging \
+  --revision <git-sha> \
+  --droplet-id <droplet-id> \
+  --host 203.0.113.10 \
+  --user vibecore \
+  --health-url https://api.example.com/health
+```
+
+The Droplet must already exist, be `active`, and match the approved host name or
+public address. Vibecore does not create Droplets. Review the plan, export
+`DIGITALOCEAN_ACCESS_TOKEN`, then repeat with `--apply --approve <digest> --ssh-key
+/absolute/key/path`. The application needs `config.deploymentWorkload: container`
+and `config.deploymentImage` pinned with `@sha256:<digest>`. Rollback is
+`vibe deploy digitalocean-droplet-rollback`.
 
 Deploy an approved revision to an existing Azure App Service, Container App, or
 disconnected Static Web App:
