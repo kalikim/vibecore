@@ -2,7 +2,7 @@ import { join, resolve } from "node:path";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import { createManifestProposal, listLanguageAdapters, scanRepository } from "./index.js";
+import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "./index.js";
 
 const fixtureRoot = resolve(import.meta.dirname, "../../../fixtures/reference-stack");
 
@@ -67,5 +67,44 @@ describe("scanRepository", () => {
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "orm-app", dependencies: { typeorm: "0.3.0" } }));
     const scan = await scanRepository(root);
     expect(scan.resources.find(({ name }) => name === "database")).toMatchObject({ config: { orm: "typeorm" }, provider: "postgres" });
+  });
+});
+
+describe("blueprints", () => {
+  it("creates a secret-free reference manifest without application source", () => {
+    expect(listBlueprints().map(({ id }) => id)).toEqual(["reference", "web-api"]);
+    const manifest = createBlueprintManifest("reference", "My App");
+    expect(manifest.metadata.name).toBe("my-app");
+    expect(Object.keys(manifest.applications)).toEqual(["web", "api", "mobile"]);
+    expect(createBlueprintManifest("web-api", "shop").applications.mobile).toBeUndefined();
+    expect(JSON.stringify(manifest)).not.toContain("postgres://");
+    expect(() => createBlueprintManifest("unknown", "app")).toThrow("Unknown blueprint");
+  });
+});
+
+describe("expo inspection", () => {
+  it("classifies EAS profiles and does not print secret values", async () => {
+    const root = await mkdtemp(join(tmpdir(), "vibecore-expo-"));
+    await mkdir(join(root, "apps/mobile"), { recursive: true });
+    await writeFile(join(root, "apps/mobile/eas.json"), JSON.stringify({
+      build: {
+        preview: { channel: "preview", distribution: "internal" },
+        production: { channel: "production", distribution: "store" },
+      },
+    }));
+    await writeFile(join(root, "apps/mobile/app.json"), JSON.stringify({ expo: { extra: { EXPO_PUBLIC_API_URL: "https://api.example.com", eas: { projectId: "11111111-1111-1111-1111-111111111111" } } } }));
+    const inspection = await inspectExpoProject(root);
+    expect(inspection.profiles.map(({ name, channel }) => `${name}:${channel}`)).toEqual(["preview:preview", "production:production"]);
+    expect(inspection.publicVariableNames).toEqual(["EXPO_PUBLIC_API_URL"]);
+    expect(inspection.diagnostics.some(({ severity }) => severity === "error")).toBe(false);
+    expect(JSON.stringify(inspection)).not.toContain("password");
+  });
+
+  it("errors when production and preview share a channel", async () => {
+    const root = await mkdtemp(join(tmpdir(), "vibecore-expo-bad-"));
+    await mkdir(join(root, "apps/mobile"), { recursive: true });
+    await writeFile(join(root, "apps/mobile/eas.json"), JSON.stringify({ build: { preview: { channel: "shared" }, production: { channel: "shared" } } }));
+    const inspection = await inspectExpoProject(root);
+    expect(inspection.diagnostics.some(({ code }) => code === "expo.eas.channel_collision")).toBe(true);
   });
 });

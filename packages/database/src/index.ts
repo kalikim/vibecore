@@ -14,6 +14,7 @@ export * from "./diagnostics.js";
 export * from "./local-runtime.js";
 export * from "./tooling.js";
 export * from "./operations.js";
+export * from "./providers.js";
 
 const riskOrder: Record<DatabaseMigrationRisk, number> = { safe: 0, review: 1, destructive: 2 };
 

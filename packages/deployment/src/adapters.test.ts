@@ -14,6 +14,7 @@ function manifest(application: ApplicationManifest): VibecoreManifest {
 const nodeApp: ApplicationManifest = { type: "api", framework: "express", language: "typescript", path: "apps/api", commands: { build: "pnpm build", start: "node dist/index.js" }, health: { path: "/health", timeoutSeconds: 45 }, config: { port: 8080 } };
 const staticApp: ApplicationManifest = { type: "web", framework: "vite-react", language: "typescript", path: "apps/web", commands: { build: "pnpm build" }, config: { outputDirectory: "dist" } };
 const containerApp: ApplicationManifest = { ...nodeApp, config: { port: 8080, deploymentWorkload: "container" } };
+const imageApp: ApplicationManifest = { ...containerApp, config: { port: 8080, deploymentWorkload: "container", deploymentImage: `ghcr.io/example/api@sha256:${"a".repeat(64)}` } };
 const phpApp: ApplicationManifest = { type: "web", framework: "laravel", language: "php", path: "apps/php", commands: { build: "composer install --no-dev" } };
 
 describe("provider deployment configuration adapters", () => {
@@ -27,6 +28,7 @@ describe("provider deployment configuration adapters", () => {
     ["azure", "app-service", nodeApp, "main.bicep"],
     ["azure", "container-apps", containerApp, "main.bicep"],
     ["digitalocean", "app-platform", nodeApp, ".do/app.yaml"],
+    ["digitalocean", "app-platform-image", imageApp, ".do/app.yaml"],
     ["digitalocean", "droplet", containerApp, "cloud-init.yaml"],
     ["shared-hosting", "static-sftp", staticApp, "sftp-release.json"],
     ["shared-hosting", "php-sftp", phpApp, "sftp-release.json"],

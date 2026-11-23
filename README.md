@@ -69,12 +69,24 @@ The project is in active early development. The source of truth is:
 ## Intended experience
 
 ```sh
+vibe init
 vibe adopt
 vibe doctor
 vibe dev
 vibe github setup --plan
 vibe deploy --environment preview
 ```
+
+Create a manifest from a blueprint, or adopt an existing repository. Init never
+generates application source:
+
+```sh
+pnpm vibe init --list
+pnpm vibe init --blueprint reference
+pnpm vibe init --blueprint reference --write --approve <digest>
+```
+
+If the repository already has detectable applications, use `vibe adopt` instead.
 
 The first CLI milestone provides read-only repository adoption and diagnostics:
 
@@ -85,6 +97,12 @@ pnpm vibe doctor
 pnpm vibe doctor --json
 pnpm vibe doctor --environment dev
 pnpm vibe history
+pnpm vibe expo inspect
+pnpm vibe expo inspect --application mobile --json
+pnpm vibe expo build --application mobile --revision <git-sha> --profile preview
+pnpm vibe expo update --application mobile --revision <git-sha> --channel preview
+pnpm vibe expo submit --application mobile --revision <git-sha> --platform ios
+pnpm vibe reconcile
 ```
 
 `vibe adopt` detects supported package managers, applications, and local resources,
@@ -148,7 +166,7 @@ Remote GitHub environments use a separate approval boundary:
 ```sh
 pnpm vibe github environments --repository owner/repository
 pnpm vibe github environments --repository owner/repository --json
-pnpm vibe github environments --repository owner/repository --apply --approve <digest> --production-approved
+pnpm vibe github environments --repository owner/repository --reviewers alice,bob --apply --approve <digest> --production-approved
 ```
 
 The executor uses GitHub's versioned environment API through the authenticated `gh`
@@ -181,6 +199,27 @@ revision, reports required secret names only, and refuses overwrites. Connect th
 repository in Vercel and map `staging` to Preview; Vercel will then create preview
 deployments from branches and pull requests without a CLI token in GitHub Actions.
 
+Deploy an approved revision to an existing Vercel project:
+
+```sh
+pnpm vibe deploy vercel \
+  --application web \
+  --environment staging \
+  --revision <git-sha> \
+  --org <team-or-org-id> \
+  --project <project-id> \
+  --health-url https://app.example.com/health
+```
+
+Review the plan, export `VERCEL_TOKEN`, and repeat with `--apply --approve <digest>`.
+Vibecore checks that `HEAD` still matches the approved revision and that the
+application path is clean. The token, org ID, and project ID are process
+environment values, never CLI flags. Production uses `--prod` and requires
+`--production-approved`. Instant rollback is production-only:
+`vibe deploy vercel-rollback`. Link an existing project locally with
+`vibe deploy vercel-link --application web --org <id> --project <id>` after
+exporting `VERCEL_TOKEN`.
+
 Discover every deployment target and its honest implementation status:
 
 ```sh
@@ -195,7 +234,7 @@ pnpm vibe deploy support --application web --json
     <tr><th>Provider</th><th>Deployment modes</th><th>Resource profile</th><th>Current status</th></tr>
   </thead>
   <tbody>
-    <tr><td>Vercel</td><td>Git-connected static and Node web apps</td><td>Free tier, usage based</td><td>Preview configuration implemented</td></tr>
+    <tr><td>Vercel</td><td>Git-connected static and Node web apps</td><td>Free tier, usage based</td><td>Preview configuration, CLI deploy, and production rollback implemented</td></tr>
     <tr><td>Railway</td><td>Git source, Railpack, Dockerfile</td><td>Low cost, usage based</td><td>Configuration implemented</td></tr>
     <tr><td>AWS</td><td>S3 and CloudFront, App Runner, ECS Fargate</td><td>Free tier, usage based, infrastructure</td><td>Forward deployment and rollback implemented</td></tr>
     <tr><td>Azure</td><td>Static Web Apps, App Service, Container Apps</td><td>Free tier, usage based, infrastructure</td><td>App Service and Container Apps execution implemented; Static Web Apps artifact deploy implemented</td></tr>
@@ -291,6 +330,21 @@ disabled. Review the plan, export `DIGITALOCEAN_ACCESS_TOKEN`, and repeat with
 path, and the remote branch revision before asking App Platform to deploy. The
 provider deployment ID is saved in the release ledger, enabling validated historical
 rollback through `vibe deploy digitalocean-rollback`.
+
+Pin a digest on an existing image-based App Platform app:
+
+```sh
+pnpm vibe deploy digitalocean-image \
+  --application api \
+  --environment staging \
+  --revision <git-sha> \
+  --app-id <digitalocean-app-id> \
+  --health-url https://api.example.com/health
+```
+
+The app must already use an image source with deploy-on-push disabled. The
+application needs `config.deploymentWorkload: container` and
+`config.deploymentImage` pinned with `@sha256:<digest>`.
 
 Deploy a digest-pinned container to an existing DigitalOcean Droplet over SSH:
 
@@ -483,7 +537,8 @@ pnpm vibe db support --json
 
 The registry distinguishes `implemented`, `planned`, and `unsupported` capabilities.
 Supabase and Neon are registered PostgreSQL provider adapters. Their detection is
-implemented; authenticated provisioning, branching, backup verification, and
+implemented. Neon project inspect is implemented through its management API without
+fetching connection strings. Authenticated create, branching, backup verification, and
 deployment operations remain explicitly marked as planned.
 
 Validate a selected stack and its environment contract without connecting to or
@@ -494,6 +549,8 @@ pnpm vibe db doctor --engine postgresql --tool prisma --provider supabase
 pnpm vibe db doctor --engine postgresql --tool drizzle --provider neon
 pnpm vibe db doctor --engine mongodb --tool mongoose --provider mongodb-atlas
 pnpm vibe db doctor --engine redis --provider upstash
+pnpm vibe db inspect-provider --provider neon
+pnpm vibe db branch --provider neon --name preview-sha
 ```
 
 Diagnostics cover every registered hosted provider, check compatible engine/tool/

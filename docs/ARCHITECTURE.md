@@ -145,6 +145,11 @@ draft -> validated -> policy checked -> approved -> executing
       -> succeeded | failed | interrupted | reconciliation required
 ```
 
+`vibe reconcile` lists executing plans and deploying releases, then after exact
+digest approval marks stale plans interrupted and either rechecks recorded health
+URLs or marks deploying releases failed. It does not invent a health URL or retry
+the original remote executor.
+
 A plan contains:
 
 - schema and tool versions;

@@ -135,16 +135,20 @@ function tool(id: string, displayName: string, engines: string[], values: Partia
 }
 
 function provider(id: string, displayName: string, engines: string[], environmentVariables: string[], documentationUrl: string, branching: boolean): DatabaseAdapterMetadata {
+  const inspect: [CapabilitySupport, string] = id === "neon"
+    ? ["implemented", "Authenticated project metadata via the Neon API. Connection URIs are never fetched."]
+    : ["planned", "Provider project and policy inspection is pending authenticated API integration."];
+  const validate: [CapabilitySupport, string] = ["implemented", "Environment-contract diagnostics check required names and URL shape without printing values."];
   return {
     id, displayName, kind: "provider", engines, environmentVariables, documentationUrl,
     capabilities: capabilities({
       detect: ["implemented", "Detected from provider-specific dependencies and environment variable names; values are never read."],
-      inspect: ["planned", "Provider project and policy inspection is pending authenticated API integration."],
-      validate: ["planned", "Credential and connectivity diagnostics are pending."],
-      provision: ["planned", "Plan-first provider API provisioning is pending."],
+      inspect,
+      validate,
+      provision: ["planned", "Plan-first provider API create remains pending; inspect an existing project instead."],
       "deploy-migrations": ["planned", "Migrations will be delegated to a compatible tooling adapter."],
       backup: ["planned", "Provider backup evidence and restore verification are pending."],
-      ...(branching ? { branching: ["planned", "Database branch lifecycle integration is pending."] as [CapabilitySupport, string] } : {}),
+      ...(branching ? { branching: id === "neon" ? ["implemented", "Exact-approved branch create on an existing Neon project. Connection URIs are discarded."] as [CapabilitySupport, string] : ["planned", "Database branch lifecycle integration is pending."] as [CapabilitySupport, string] } : {}),
     }),
   };
 }

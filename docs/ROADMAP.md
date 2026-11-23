@@ -51,7 +51,9 @@ capabilities, including Supabase and Neon adapter definitions. Exact-approved Pr
 Drizzle, and declarative MongoDB migration execution is implemented, with production
 destructive changes requiring a verified backup checksum. Engine backup and restore
 cover PostgreSQL, MySQL/MariaDB, SQLite, and MongoDB without putting credentials in
-command arguments. Authenticated hosted-provider provisioning remains pending.
+command arguments. Authenticated hosted-provider project create remains pending. Neon project inspect
+and exact-approved branch create on an existing project are implemented; connection
+URIs are never returned.
 Read-only environment and compatibility diagnostics cover Supabase, Neon, MongoDB
 Atlas, PlanetScale, Upstash, and Railway. Local Compose model generation covers
 PostgreSQL, MySQL, MariaDB, MongoDB, and Redis with loopback-only ports, credential
@@ -81,10 +83,13 @@ Exit gate:
 Status: Started with deterministic GitHub Actions and Dependabot generation,
 least-privilege permissions, exact-digest approval, and standardized `dev`, `staging`,
 and `production` environment gates. Exact-approved remote GitHub environment creation
-is implemented through the versioned API; reviewer selection and additional preview
-providers remain pending.
-Vercel Git-connected preview configuration is now plan-first and exact-approved;
-automatic project linking and preview health verification remain pending.
+is implemented through the versioned API. Production environments set
+`prevent_self_review` and can require named GitHub reviewers resolved at apply time.
+Vercel Git-connected preview configuration and exact-approved CLI deploy to an
+existing project are implemented. Tokens stay in `VERCEL_TOKEN`; org and project
+IDs are execution identifiers. Instant rollback is production-only. Automatic
+project creation remains pending. Local linking of an existing project writes
+`.vercel/project.json` after API verification.
 The provider-neutral deployment registry now describes Railway, AWS, Azure,
 DigitalOcean, and shared-hosting modes, affordability profiles, credential-name
 contracts, workload compatibility, and per-capability status. These entries are
@@ -124,7 +129,8 @@ exact-approved rollback. Railway forward deployment is implemented with explicit
 project/service/environment targeting, project-scoped token isolation, source-state
 validation, and external health recording. Railway historical rollback remains
 unsupported by its CLI and is not misrepresented as `redeploy`. Other managed-provider
-executors, backup hooks, and interrupted remote-deployment reconciliation remain pending.
+executors and backup hooks remain pending. Interrupted plan and deploying-release
+reconciliation is implemented as an exact-approved ledger repair.
 DigitalOcean App Platform forward deployment is implemented for existing GitHub-backed
 apps with automatic deployment disabled, local and remote revision verification,
 temporary token isolation, provider deployment ID recording, external health gating,
@@ -132,7 +138,7 @@ and validated historical rollback through the official API. Existing Droplet
 execution is implemented: doctl confirms the droplet is active and matches the
 approved host, then a digest-pinned Compose release is applied over strict SSH.
 Vibecore does not create, patch, or firewall Droplets. Digest-pinned App Platform
-container images remain pending.
+container image execution is implemented for existing image-based apps.
 Azure forward deployment is implemented for existing App Service, Container Apps, and
 disconnected Static Web Apps using the current `az` identity. App Service zip-deploys
 an approved git archive, Container Apps shift traffic onto a digest-pinned revision,
@@ -172,6 +178,10 @@ Exit gate:
 - destructive migrations are blocked without required evidence and approval.
 
 ## Milestone 5 — Expo delivery
+
+Status: Started with read-only EAS profile, channel, and `EXPO_PUBLIC_` contract
+inspection, plus exact-approved `eas build --no-wait`, `eas update`, and `eas submit --latest`
+wrappers. Vibecore does not run local native builds (`--local` is refused).
 
 Deliverables:
 

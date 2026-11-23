@@ -1,20 +1,19 @@
 #!/usr/bin/env node
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
-import type { DatabaseOperationPlan, Diagnostic } from "@vibecore/contracts";
+import type { DatabaseAdapterKind, DatabaseOperationPlan, Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
-import { createManifestProposal, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
+import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
 import { createAdoptionPlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
-import { applyDeploymentConfigurationPlan, applyHealthResult, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createRailwayDeploymentPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanRollback, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type SharedHostingMode } from "@vibecore/deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, applyReconciliationWithHealth, applyVercelLinkPlan, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createDigitalOceanImagePlan, createExpoBuildPlan, createExpoSubmitPlan, createExpoUpdatePlan, createRailwayDeploymentPlan, createReconciliationPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelDeploymentPlan, createVercelLinkPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanImagePlan, executeDigitalOceanRollback, executeExpoEasPlan, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, executeVercelDeploymentPlan, executeVercelRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type ExpoEasPlan, type SharedHostingMode } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
-import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, inspectDrizzleMigrations, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
-import type { DatabaseAdapterKind } from "@vibecore/contracts";
+import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, createNeonBranchPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, executeNeonBranchPlan, inspectDrizzleMigrations, inspectHostedDatabase, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
 
 const program = new Command()
   .name("vibe")
@@ -32,6 +31,116 @@ program
       console.log(`${adapter.displayName} (${adapter.id})`);
       console.log(`  Package tools: ${adapter.packageTools.join(", ")}`);
       console.log(`  Frameworks: ${adapter.frameworks.join(", ")}`);
+    }
+  });
+
+const expo = program.command("expo").description("Inspect Expo/EAS configuration without running a native build");
+
+expo
+  .command("inspect")
+  .description("Inspect EAS profiles, update channels, and Expo public environment contracts")
+  .option("--path <path>", "Expo application path", "apps/mobile")
+  .option("-a, --application <name>", "application declared in the manifest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { path: string; application?: string; manifest: string; json?: boolean }) => {
+    try {
+      let applicationPath = options.path;
+      if (options.application) {
+        const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+        const application = manifest.applications[options.application];
+        if (!application) throw new Error(`Application is not declared: ${options.application}`);
+        if (application.framework !== "expo" && application.type !== "mobile") throw new Error(`${options.application} is not an Expo application`);
+        applicationPath = application.path;
+      }
+      const inspection = await inspectExpoProject(process.cwd(), applicationPath);
+      if (options.json) printJson(inspection);
+      else {
+        console.log(`Expo path: ${inspection.applicationPath}`);
+        if (inspection.easPath) console.log(`EAS config: ${inspection.easPath}`);
+        for (const profile of inspection.profiles) console.log(`${profile.name}${profile.channel ? ` channel=${profile.channel}` : ""}${profile.distribution ? ` distribution=${profile.distribution}` : ""}`);
+        if (inspection.publicVariableNames.length) console.log(`Public variables: ${inspection.publicVariableNames.join(", ")}`);
+        if (inspection.diagnostics.length) printDiagnostics(inspection.diagnostics, false);
+        if (!inspection.profiles.length && !inspection.diagnostics.length) console.log("No EAS profiles were found");
+      }
+      process.exitCode = inspection.diagnostics.some(({ severity }) => severity === "error") ? 1 : 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{ code: "expo.inspect_failed", severity: "error", component: "expo", message }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+expo
+  .command("build")
+  .description("Plan or start a non-interactive EAS build without waiting for native output")
+  .requiredOption("--application <name>", "Expo application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .option("--profile <name>", "EAS build profile", "production")
+  .option("--platform <platform>", "ios, android, or all", "all")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with EXPO_TOKEN")
+  .option("--approve <digest>", "approve the exact EAS build plan")
+  .option("--production-approved", "separately approve a production build")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; profile: string; platform: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.platform !== "ios" && options.platform !== "android" && options.platform !== "all") throw new Error("EAS platform must be ios, android, or all");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createExpoBuildPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, profile: options.profile, platform: options.platform });
+      await runExpoPlan(plan, options);
+    } catch (error) {
+      printDiagnostics([{ code: "expo.build_failed", severity: "error", component: "expo", message: error instanceof Error ? error.message : String(error) }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+expo
+  .command("submit")
+  .description("Plan or submit the latest EAS build to the App Store or Play Store")
+  .requiredOption("--application <name>", "Expo application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .requiredOption("--platform <platform>", "ios or android")
+  .option("--profile <name>", "EAS submit profile", "production")
+  .option("-e, --environment <name>", "target environment", "production")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with EXPO_TOKEN")
+  .option("--approve <digest>", "approve the exact EAS submit plan")
+  .option("--production-approved", "separately approve a production submit")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; platform: string; profile: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      if (options.platform !== "ios" && options.platform !== "android") throw new Error("EAS submit requires ios or android");
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createExpoSubmitPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, profile: options.profile, platform: options.platform });
+      await runExpoPlan(plan, options);
+    } catch (error) {
+      printDiagnostics([{ code: "expo.submit_failed", severity: "error", component: "expo", message: error instanceof Error ? error.message : String(error) }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+expo
+  .command("update")
+  .description("Plan or publish an exact-approved EAS update to a channel")
+  .requiredOption("--application <name>", "Expo application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .option("--channel <name>", "EAS update channel", "production")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with EXPO_TOKEN")
+  .option("--approve <digest>", "approve the exact EAS update plan")
+  .option("--production-approved", "separately approve a production update")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; channel: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createExpoUpdatePlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, channel: options.channel });
+      await runExpoPlan(plan, options);
+    } catch (error) {
+      printDiagnostics([{ code: "expo.update_failed", severity: "error", component: "expo", message: error instanceof Error ? error.message : String(error) }], options.json ?? false);
+      process.exitCode = 1;
     }
   });
 
@@ -121,6 +230,55 @@ program
   });
 
 program
+  .command("init")
+  .description("Create a manifest from a supported blueprint without generating application source")
+  .option("--blueprint <id>", "blueprint identifier", "reference")
+  .option("--list", "show available blueprints")
+  .option("--json", "print machine-readable JSON")
+  .option("--write", "create the manifest after digest approval")
+  .option("--approve <digest>", "approve the exact generated plan digest")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .action(async (options: { blueprint: string; list?: boolean; json?: boolean; write?: boolean; approve?: string; manifest: string }) => {
+    try {
+      if (options.list) {
+        const blueprints = listBlueprints();
+        if (options.json) printJson({ blueprints });
+        else for (const blueprint of blueprints) console.log(`${blueprint.id}\n  ${blueprint.displayName}\n  ${blueprint.description}`);
+        return;
+      }
+      const scan = await scanRepository(process.cwd());
+      if (scan.applications.length > 0) throw new Error("This repository already has detectable applications; use vibe adopt instead of vibe init");
+      const manifest = createBlueprintManifest(options.blueprint, basename(process.cwd()));
+      const plan = createAdoptionPlan(scan, manifest, options.manifest);
+      const proposal = { blueprint: options.blueprint, scan, manifest, plan };
+      if (!options.json) {
+        console.log("# Blueprint manifest proposal. No application source was generated.\n");
+        process.stdout.write(stringify(manifest, { lineWidth: 100 }));
+        console.log(`\n# Plan: ${plan.id}`);
+        console.log(`# Digest: ${plan.digest}`);
+      }
+      if (options.write) {
+        if (!options.approve) {
+          if (options.json) printJson(proposal);
+          else console.log(`\nReview the plan, then apply it with:\n  vibe init --blueprint ${options.blueprint} --write --approve ${plan.digest}`);
+          process.exitCode = 2;
+          return;
+        }
+        const currentScan = await scanRepository(process.cwd());
+        const result = await applyAdoptionPlan(plan, { repositoryRoot: process.cwd(), approval: options.approve, currentRepositoryFingerprint: currentScan.fingerprint });
+        if (options.json) printJson({ ...proposal, execution: result });
+        else console.log(`\n✓ Applied ${result.appliedActions.length} action from ${result.planId}`);
+        return;
+      }
+      if (options.json) printJson(proposal);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{ code: "init.failed", severity: "error", component: "init", message }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+program
   .command("adopt")
   .description("Inspect an existing repository and propose a Vibecore manifest")
   .option("--json", "print machine-readable JSON")
@@ -204,12 +362,15 @@ program
         printJson(state);
         return;
       }
-      if (state.plans.length === 0) {
+      if (state.plans.length === 0 && state.releases.length === 0) {
         console.log("No local executions have been recorded");
         return;
       }
       for (const plan of state.plans) {
         console.log(`${statusSymbol(plan.status)} ${plan.id}  ${plan.status}  ${plan.environment}  ${plan.updatedAt}`);
+      }
+      for (const release of state.releases) {
+        console.log(`${statusSymbol(release.status)} ${release.id}  ${release.application}  ${release.provider}/${release.mode}  ${release.status}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -219,6 +380,45 @@ program
         component: "state",
         message,
       }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("reconcile")
+  .description("Plan or apply reconciliation of interrupted plans and deploying releases")
+  .option("--apply", "apply the exact-approved reconciliation plan")
+  .option("--approve <digest>", "approve the exact reconciliation digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { apply?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      const store = new FileStateStore(process.cwd());
+      const state = await store.read();
+      const plan = createReconciliationPlan(state);
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          if (plan.planIds.length) console.log(`Interrupted plans: ${plan.planIds.join(", ")}`);
+          if (plan.releaseIds.length) console.log(`Deploying releases: ${plan.releaseIds.join(", ")}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No ledger entries were changed.");
+        }
+        return;
+      }
+      if (!options.approve) {
+        if (options.json) printJson({ plan });
+        else console.log(`Review the plan, then apply it with:\n  vibe reconcile --apply --approve ${plan.digest}`);
+        process.exitCode = 2;
+        return;
+      }
+      const next = await applyReconciliationWithHealth(state, plan, options.approve);
+      for (const id of plan.planIds) await store.finish(id, "interrupted");
+      for (const release of next.releases.filter((release) => plan.releaseIds.includes(release.id))) await store.updateRelease(release);
+      if (options.json) printJson({ plan, plans: next.plans.filter((entry) => plan.planIds.includes(entry.id)), releases: next.releases.filter((release) => plan.releaseIds.includes(release.id)) });
+      else console.log(`✓ Reconciled ${plan.planIds.length} plan(s) and ${plan.releaseIds.length} release(s)`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      printDiagnostics([{ code: "state.reconcile_failed", severity: "error", component: "state", message }], options.json ?? false);
       process.exitCode = 1;
     }
   });
@@ -453,6 +653,109 @@ deploy.command("railway")
     } catch (error) { printDeploymentError("deployment.railway_failed", error, options.json ?? false); }
   });
 
+deploy.command("vercel")
+  .description("Plan or deploy an approved revision to an existing Vercel project")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .requiredOption("--org <id>", "existing Vercel org or team ID")
+  .requiredOption("--project <id>", "existing Vercel project ID")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "execute the exact-approved plan with VERCEL_TOKEN")
+  .option("--approve <digest>", "approve the exact Vercel deployment plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; org: string; project: string; healthUrl: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createVercelDeploymentPlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, orgId: options.org, projectId: options.project, healthUrl: options.healthUrl });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(`Target: Vercel ${plan.orgId}/${plan.projectId} (${plan.production ? "production" : "preview"})`);
+          console.log(`Source: ${plan.sourceRevision} from ${plan.applicationPath}`);
+          console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No Vercel deployment was started.");
+        }
+        return;
+      }
+      const token = process.env.VERCEL_TOKEN;
+      if (!options.approve || !token) {
+        if (options.json) printJson({ plan });
+        else console.log(`Set VERCEL_TOKEN in the current process, then apply with:\n  vibe deploy vercel --application ${plan.application} --environment ${plan.environment} --revision ${plan.sourceRevision} --org ${plan.orgId} --project ${plan.projectId} --health-url ${plan.healthUrl} --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+        process.exitCode = 2;
+        return;
+      }
+      const result = await executeVercelDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Vercel release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.vercel_failed", error, options.json ?? false); }
+  });
+
+deploy.command("vercel-rollback")
+  .description("Apply an exact-approved Vercel production rollback to a preceding deployment ID")
+  .requiredOption("--release <id>", "unhealthy or failed release identifier")
+  .requiredOption("--org <id>", "existing Vercel org or team ID")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .requiredOption("--approve <digest>", "approve the exact rollback plan digest")
+  .option("--production-approved", "separately approve a production rollback")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { release: string; org: string; healthUrl: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const token = process.env.VERCEL_TOKEN;
+      if (!token) throw new Error("Set VERCEL_TOKEN in the current process");
+      const store = new FileStateStore(process.cwd());
+      const releases = await store.releases();
+      const plan = createRollbackPlan(releases, options.release);
+      const result = await executeVercelRollback(plan, releases, { approval: options.approve, token, orgId: options.org, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
+      await store.updateRelease(result.failed);
+      await store.recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Vercel rollback release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.vercel_rollback_failed", error, options.json ?? false); }
+  });
+
+deploy.command("vercel-link")
+  .description("Plan or write a local Vercel project link for an existing org and project")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--org <id>", "existing Vercel org or team ID")
+  .requiredOption("--project <id>", "existing Vercel project ID")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "write .vercel/project.json after verifying the project")
+  .option("--approve <digest>", "approve the exact link plan digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; org: string; project: string; manifest: string; apply?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createVercelLinkPlan(manifest, { application: options.application, orgId: options.org, projectId: options.project });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(`Link ${plan.applicationPath} to ${plan.orgId}/${plan.projectId}`);
+          console.log(`File: ${plan.filePath}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No file was written.");
+        }
+        return;
+      }
+      const token = process.env.VERCEL_TOKEN;
+      if (!options.approve || !token) {
+        if (options.json) printJson({ plan });
+        else console.log(`Set VERCEL_TOKEN, then apply with --apply --approve ${plan.digest}`);
+        process.exitCode = 2;
+        return;
+      }
+      const written = await applyVercelLinkPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token });
+      if (options.json) printJson({ plan, written });
+      else console.log(`✓ Wrote ${written}`);
+    } catch (error) { printDeploymentError("deployment.vercel_link_failed", error, options.json ?? false); }
+  });
+
 deploy.command("digitalocean")
   .description("Plan or deploy an approved revision to an existing DigitalOcean App Platform app")
   .requiredOption("--application <name>", "application declared in the manifest")
@@ -477,6 +780,48 @@ deploy.command("digitalocean")
       const result = await executeDigitalOceanDeploymentPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false }); await new FileStateStore(process.cwd()).recordRelease(result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean release ${result.release.id} is ${result.release.status}`); process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.digitalocean_failed", error, options.json ?? false); }
+  });
+
+deploy.command("digitalocean-image")
+  .description("Plan or deploy a digest-pinned image to an existing DigitalOcean App Platform app")
+  .requiredOption("--application <name>", "application declared in the manifest")
+  .requiredOption("--revision <sha>", "immutable Git source revision matching HEAD")
+  .requiredOption("--app-id <id>", "existing DigitalOcean App Platform app ID")
+  .requiredOption("--health-url <url>", "externally reachable HTTP(S) health URL")
+  .option("-e, --environment <name>", "Vibecore target environment", "staging")
+  .option("-m, --manifest <path>", "manifest path", "vibecore.yaml")
+  .option("--apply", "start the exact-approved deployment")
+  .option("--approve <digest>", "approve the exact DigitalOcean image plan")
+  .option("--production-approved", "separately approve a production deployment")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { application: string; revision: string; appId: string; healthUrl: string; environment: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+    try {
+      const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
+      const plan = createDigitalOceanImagePlan(manifest, { application: options.application, environment: options.environment, sourceRevision: options.revision, appId: options.appId, healthUrl: options.healthUrl });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(`Target: DigitalOcean app ${plan.appId}`);
+          console.log(`Image: ${plan.image}`);
+          console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No DigitalOcean deployment was started.");
+        }
+        return;
+      }
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN;
+      if (!options.approve || !token) {
+        if (options.json) printJson({ plan });
+        else console.log(`Set DIGITALOCEAN_ACCESS_TOKEN in the current process, then repeat this command with --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+        process.exitCode = 2;
+        return;
+      }
+      const result = await executeDigitalOceanImagePlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false });
+      await new FileStateStore(process.cwd()).recordRelease(result.release);
+      if (options.json) printJson({ plan, release: result.release });
+      else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean image release ${result.release.id} is ${result.release.status}`);
+      process.exitCode = result.release.status === "healthy" ? 0 : 1;
+    } catch (error) { printDeploymentError("deployment.digitalocean_image_failed", error, options.json ?? false); }
   });
 
 deploy.command("digitalocean-rollback")
@@ -781,14 +1126,16 @@ github.command("environments")
   .option("--apply", "create or update the remote environments")
   .option("--approve <digest>", "approve the exact remote plan digest")
   .option("--production-approved", "explicitly approve remote production configuration")
+  .option("--reviewers <logins>", "comma-separated GitHub usernames required to review production deployments")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { repository: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }) => {
+  .action(async (options: { repository: string; manifest: string; apply?: boolean; approve?: string; productionApproved?: boolean; reviewers?: string; json?: boolean }) => {
     try {
       const manifest = await loadManifest(resolve(process.cwd(), options.manifest));
-      const plan = createGitHubEnvironmentPlan(manifest, options.repository);
+      const reviewers = options.reviewers ? options.reviewers.split(",") : [];
+      const plan = createGitHubEnvironmentPlan(manifest, options.repository, reviewers);
       if (!options.apply) {
         if (options.json) printJson(plan);
-        else { console.log(`Repository: ${plan.repository}`); for (const environment of plan.environments) console.log(`• ${environment.name} (${environment.secretNames.length} secret name contract(s))`); console.log(`Plan digest: ${plan.digest}`); }
+        else { console.log(`Repository: ${plan.repository}`); for (const environment of plan.environments) console.log(`• ${environment.name} (${environment.secretNames.length} secret name contract(s))`); if (plan.productionReviewers.length) console.log(`Production reviewers: ${plan.productionReviewers.join(", ")}`); console.log(`Plan digest: ${plan.digest}`); }
         return;
       }
       if (!options.approve) { if (options.json) printJson(plan); else console.log(`Review the plan, then apply it with:\n  vibe github environments --repository ${plan.repository} --apply --approve ${plan.digest} --production-approved`); process.exitCode = 2; return; }
@@ -858,6 +1205,57 @@ database
         console.log(`  ${supportSymbol(capability.support)} ${capability.capability.padEnd(20)} ${capability.support}`);
       }
     }
+  });
+
+database
+  .command("inspect-provider")
+  .description("Inspect an existing hosted database project through its authenticated API")
+  .requiredOption("--provider <provider>", "hosted provider, currently neon")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { provider: string; json?: boolean }) => {
+    try {
+      const result = await inspectHostedDatabase(options.provider, process.env);
+      if (options.json) printJson(result);
+      else {
+        console.log(`${result.provider}${result.projectId ? ` ${result.projectId}` : ""}${result.name ? ` (${result.name})` : ""}${result.region ? ` ${result.region}` : ""}`);
+        if (result.diagnostics.length) printDiagnostics(result.diagnostics, false);
+      }
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
+  });
+
+database
+  .command("branch")
+  .description("Plan or create a branch on an existing Neon project without returning connection URIs")
+  .requiredOption("--provider <provider>", "hosted provider, currently neon")
+  .requiredOption("--name <branch>", "lowercase branch name")
+  .option("-e, --environment <name>", "target environment", "staging")
+  .option("--apply", "create the branch after exact digest approval")
+  .option("--approve <digest>", "approve the exact branch plan digest")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { provider: string; name: string; environment: string; apply?: boolean; approve?: string; json?: boolean }) => {
+    try {
+      if (options.provider !== "neon") throw new Error("Branch create is implemented for neon; other providers remain inspect-only");
+      const plan = createNeonBranchPlan({ branchName: options.name, environment: options.environment, environmentVariables: process.env });
+      if (!options.apply) {
+        if (options.json) printJson({ plan });
+        else {
+          console.log(`Neon project ${plan.projectId}  branch ${plan.branchName}  ${plan.environment}`);
+          console.log(`Plan digest: ${plan.digest}`);
+          console.log("No branch was created.");
+        }
+        return;
+      }
+      const token = process.env.NEON_API_KEY;
+      if (!options.approve || !token) {
+        if (options.json) printJson({ plan });
+        else console.log(`Set NEON_API_KEY and NEON_PROJECT_ID, then apply with --apply --approve ${plan.digest}`);
+        process.exitCode = 2;
+        return;
+      }
+      const result = await executeNeonBranchPlan(plan, { approval: options.approve, token });
+      if (options.json) printJson({ plan, result });
+      else console.log(`✓ Created Neon branch ${result.branchName} (${result.branchId})`);
+    } catch (error) { printDatabaseError(error, options.json ?? false); }
   });
 
 database
@@ -1152,6 +1550,34 @@ function riskSymbol(risk: string): string {
 
 function supportSymbol(support: string): string {
   return support === "implemented" ? "✓" : "○";
+}
+
+async function runExpoPlan(plan: ExpoEasPlan, options: { apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }): Promise<void> {
+  if (!options.apply) {
+    if (options.json) printJson({ plan });
+    else {
+      console.log(`Expo ${plan.operation}  ${plan.application}  ${plan.environment}  ${plan.sourceRevision}`);
+      console.log(`Required secret names: ${plan.requiredSecretNames.join(", ")}`);
+      console.log(`Plan digest: ${plan.digest}`);
+      console.log("No EAS command was run.");
+    }
+    return;
+  }
+  const token = process.env.EXPO_TOKEN;
+  if (!options.approve || !token) {
+    if (options.json) printJson({ plan });
+    else console.log(`Set EXPO_TOKEN, then apply with --apply --approve ${plan.digest}${plan.environment === "production" ? " --production-approved" : ""}`);
+    process.exitCode = 2;
+    return;
+  }
+  const result = await executeExpoEasPlan(plan, { approval: options.approve, repositoryRoot: process.cwd(), token, productionApproved: options.productionApproved ?? false });
+  await new FileStateStore(process.cwd()).recordRelease(result.release);
+  if (options.json) printJson({ plan, release: result.release, output: result.output });
+  else {
+    console.log(`${result.release.status === "healthy" ? "✓" : "•"} Recorded ${result.release.id} as ${result.release.status}`);
+    if (result.output) console.log(result.output);
+  }
+  process.exitCode = result.release.status === "failed" || result.release.status === "unhealthy" ? 1 : 0;
 }
 
 async function runDatabasePlan(plan: DatabaseOperationPlan, options: { apply?: boolean; approve?: string; productionApproved?: boolean; json?: boolean }): Promise<void> {

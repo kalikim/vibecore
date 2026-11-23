@@ -11,14 +11,17 @@ export * from "./azure.js";
 export * from "./aws.js";
 export * from "./shared-hosting.js";
 export * from "./droplet.js";
+export * from "./vercel.js";
+export * from "./reconcile.js";
+export * from "./expo.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 
 const deploymentProviders: DeploymentProviderMetadata[] = [
   {
-    id: "vercel", displayName: "Vercel", kind: "managed-platform", costProfiles: ["free-tier", "usage-based"], credentialNames: [],
-    modes: [{ id: "git-web", displayName: "Git-connected web application", workloads: ["static", "node"], source: "git", configure: "implemented", preview: "implemented", deploy: "planned", rollback: "planned", notes: ["Repository connection and environment values are completed in Vercel; Vibecore never places a token in generated workflows."] }],
-    notes: ["Vibecore currently generates exact-approved preview configuration for supported web frameworks."],
+    id: "vercel", displayName: "Vercel", kind: "managed-platform", costProfiles: ["free-tier", "usage-based"], credentialNames: ["VERCEL_TOKEN"],
+    modes: [{ id: "git-web", displayName: "Git-connected web application", workloads: ["static", "node"], source: "git", configure: "implemented", preview: "implemented", deploy: "implemented", rollback: "implemented", notes: ["Existing projects deploy through the Vercel CLI using VERCEL_ORG_ID, VERCEL_PROJECT_ID, and VERCEL_TOKEN in the process environment. Instant rollback is production-only. Tokens are never CLI flags."] }],
+    notes: ["Preview configuration remains exact-approved vercel.json. Remote deploy requires an existing Vercel project; Vibecore does not create or link projects."],
   },
   {
     id: "railway", displayName: "Railway", kind: "managed-platform", costProfiles: ["low-cost", "usage-based"], credentialNames: ["RAILWAY_TOKEN"],
@@ -47,7 +50,7 @@ const deploymentProviders: DeploymentProviderMetadata[] = [
     id: "digitalocean", displayName: "DigitalOcean", kind: "cloud", costProfiles: ["low-cost", "usage-based", "infrastructure"], credentialNames: ["DIGITALOCEAN_ACCESS_TOKEN"],
     modes: [
       { id: "app-platform", displayName: "App Platform Git source", workloads: ["static", "node", "python", "go", "php"], source: "git", configure: "implemented", preview: "planned", deploy: "implemented", rollback: "implemented", notes: ["Existing GitHub-backed apps deploy through an exact-approved branch revision; historical rollback uses DigitalOcean's validated rollback API."] },
-      { id: "app-platform-image", displayName: "App Platform container image", workloads: ["container"], source: "container-image", configure: "planned", preview: "planned", deploy: "planned", rollback: "planned", notes: ["Digest-pinned container image execution is a separate pending adapter."] },
+      { id: "app-platform-image", displayName: "App Platform container image", workloads: ["container"], source: "container-image", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Existing image-based apps receive a digest-pinned spec update, then an exact-approved deployment. GitHub auto-deploy must stay disabled."] },
       { id: "droplet", displayName: "Droplet", workloads: ["container"], source: "ssh-sftp", configure: "implemented", preview: "unsupported", deploy: "implemented", rollback: "implemented", notes: ["Existing active droplets receive a versioned Compose release over SSH after doctl confirms the droplet identity. Images must be digest-pinned. Vibecore does not create, patch, or firewall the Droplet."] },
     ], notes: ["Droplet execution uses a non-root SSH user, strict host-key verification, and a pre-provisioned environment file. Cloud-init is a bootstrap artifact only."],
   },

@@ -104,9 +104,10 @@ The shared release lifecycle is implemented locally. `vibe deploy releases` read
 the secret-free ledger, `vibe deploy verify-health` performs bounded HTTP checks
 without following redirects or storing response bodies, and `vibe deploy rollback`
 selects the preceding healthy immutable release and creates a tamper-evident plan.
-Self-hosted Docker, Railway, DigitalOcean App Platform and Droplet, Azure App
-Service and Container Apps, AWS S3/CloudFront, App Runner, and ECS Fargate, and
-shared-hosting SSH/SFTP can apply that plan through their executors.
+Self-hosted Docker, Railway, Vercel, DigitalOcean App Platform (Git and image) and
+Droplet, Azure App Service and Container Apps, AWS S3/CloudFront, App Runner, and
+ECS Fargate, and shared-hosting SSH/SFTP can apply that plan through their
+executors.
 
 ## Self-hosted Docker execution
 
@@ -199,6 +200,29 @@ marks Railway rollback as unsupported instead of treating `railway redeploy` as 
 rollback. The local rollback plan still identifies the preceding healthy revision for
 an operator using Railway's deployment dashboard.
 
+## Vercel execution
+
+Existing Vercel projects can be deployed through the official CLI. Vibecore does not
+create or link projects. Org ID, project ID, and `VERCEL_TOKEN` are supplied through
+the process environment, never as `--token`.
+
+```sh
+vibe deploy vercel --application web --environment staging \
+  --revision <git-sha> --org <team-or-org-id> --project <project-id> \
+  --health-url https://app.example.com/health
+```
+
+Staging creates a preview deployment. Production adds `--prod` and requires
+`--production-approved`. Before upload, Vibecore verifies repository `HEAD` and that
+the application path is clean. Instant rollback uses `vercel rollback` and is
+production-only:
+
+```sh
+vibe deploy vercel-rollback --release <failed-release-id> \
+  --org <team-or-org-id> --health-url https://app.example.com/health \
+  --approve <rollback-digest> --production-approved
+```
+
 ## DigitalOcean App Platform execution
 
 Forward deployment and historical rollback are implemented for existing
@@ -233,6 +257,15 @@ vibe deploy digitalocean-rollback --release <failed-release-id> \
 The executor calls DigitalOcean's rollback validation endpoint before creating the
 historical rollback. Database data is not rolled back by App Platform and still
 requires a separate database backup and recovery workflow.
+
+Digest-pinned image apps use a separate executor. The existing app must already
+have an image source; Vibecore updates the digest, then creates a deployment.
+
+```sh
+vibe deploy digitalocean-image --application api --environment staging \
+  --revision <git-sha> --app-id <app-id> \
+  --health-url https://api.example.com/health
+```
 
 ## DigitalOcean Droplet execution
 

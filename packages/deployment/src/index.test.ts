@@ -13,6 +13,8 @@ describe("deployment provider registry", () => {
   it("lists managed cloud and affordable hosting targets without claiming planned deployment is implemented", () => {
     expect(listDeploymentProviders().map(({ id }) => id)).toEqual(["vercel", "railway", "aws", "azure", "digitalocean", "shared-hosting", "self-hosted"]);
     expect(getDeploymentProvider("do")?.id).toBe("digitalocean");
+    expect(getDeploymentProvider("vercel")?.modes[0]).toMatchObject({ deploy: "implemented", rollback: "implemented" });
+    expect(getDeploymentProvider("digitalocean")?.modes.find(({ id }) => id === "app-platform-image")?.deploy).toBe("implemented");
     expect(getDeploymentProvider("aws")?.modes.find(({ id }) => id === "s3-cloudfront")?.deploy).toBe("implemented");
     expect(getDeploymentProvider("digitalocean")?.modes.find(({ id }) => id === "droplet")?.deploy).toBe("implemented");
     expect(getDeploymentProvider("digitalocean")?.modes.find(({ id }) => id === "droplet")?.rollback).toBe("implemented");

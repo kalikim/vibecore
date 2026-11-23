@@ -74,6 +74,8 @@ const languageAdapters: LanguageAdapterMetadata[] = [
 ];
 
 export function listLanguageAdapters(): LanguageAdapterMetadata[] { return languageAdapters.map((adapter) => ({ ...adapter, packageTools: [...adapter.packageTools], frameworks: [...adapter.frameworks], detectionFiles: [...adapter.detectionFiles] })); }
+export { createBlueprintManifest, listBlueprints } from "./blueprints.js";
+export { inspectExpoProject } from "./expo.js";
 
 export async function scanRepository(repositoryRoot: string): Promise<RepositoryScan> {
   const root = resolve(repositoryRoot);

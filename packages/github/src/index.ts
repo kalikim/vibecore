@@ -26,7 +26,7 @@ export function createGitHubSetupPlan(manifest: VibecoreManifest): GitHubSetupPl
   const semantic = { files, environments, secretNames };
   return {
     digest: digestValue(semantic), files, environments, secretNames,
-    warnings: ["Configure required reviewers and prevent self-review for the GitHub production environment.", "Deployment jobs are validation gates until a deployment adapter is configured."],
+    warnings: ["Pass --reviewers when applying GitHub environments so production cannot be self-approved.", "Deployment jobs are validation gates until a deployment adapter is configured."],
   };
 }
 
