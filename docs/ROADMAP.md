@@ -3,6 +3,16 @@
 Dates are intentionally omitted until team size and release cadence are known.
 Progress is controlled by acceptance gates, not feature count.
 
+## Release validation checkpoint (2026-11-23)
+
+Repository CI, executable CLI smoke tests, and offline isolated-production-install
+verification are implemented locally. The config package now carries its schema.
+Reconciliation approvals are bound to selected ledger state, including health
+targets, and unrelated releases are not rechecked. See
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md) for reproducible commands and the
+remaining release gates. This checkpoint does not mark the milestones below
+complete or establish successful live-provider acceptance.
+
 ## Milestone 0 — Contracts
 
 Deliverables:
@@ -31,7 +41,7 @@ Deliverables:
 - Next.js, Expo, Hono, Prisma, and pnpm detection;
 - Python/FastAPI/Django, Go/Gin, PHP/Laravel, Rust/Axum, Java/Kotlin Spring Boot,
   and .NET/ASP.NET Core detection;
-- `vibe adopt --plan` and `vibe doctor`;
+- `vibe adopt` (read-only proposal by default) and `vibe doctor`;
 - human and JSON output.
 - deterministic OpenAPI 3.1 scaffolding and framework-specific Swagger guidance;
 

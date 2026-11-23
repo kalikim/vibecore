@@ -18,7 +18,7 @@ export class ManifestValidationError extends Error {
 const packageDirectory = dirname(fileURLToPath(import.meta.url));
 const defaultSchemaPath = resolve(
   packageDirectory,
-  "../../../schemas/vibecore.schema.json",
+  "../schemas/vibecore.schema.json",
 );
 
 export async function loadManifest(

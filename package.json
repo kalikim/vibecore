@@ -9,9 +9,11 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsc -b",
-    "check": "pnpm typecheck && pnpm test",
-    "typecheck": "tsc -b --pretty false",
+    "build": "node scripts/prepare-assets.mjs && tsc -b",
+    "check": "pnpm typecheck && pnpm test && pnpm test:cli",
+    "typecheck": "node scripts/prepare-assets.mjs && tsc -b --pretty false",
+    "test:cli": "pnpm build && node --test tests/cli.smoke.mjs",
+    "test:package": "pnpm build && node scripts/verify-package.mjs",
     "test": "vitest run",
     "vibe": "pnpm build && node apps/cli/dist/index.js"
   },

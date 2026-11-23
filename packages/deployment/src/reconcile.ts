@@ -1,4 +1,4 @@
-import type { DeploymentHealthResult, PlanLedgerEntry, Release, VibecoreState } from "@vibecore/contracts";
+import type { PlanLedgerEntry, Release, VibecoreState } from "@vibecore/contracts";
 import { digestValue } from "@vibecore/planner";
 import { applyHealthResult, verifyDeploymentHealth } from "./releases.js";
 
@@ -6,6 +6,7 @@ export interface ReconciliationPlan {
   action: "reconcile-interrupted";
   planIds: string[];
   releaseIds: string[];
+  stateDigest: string;
   digest: string;
 }
 
@@ -13,7 +14,8 @@ export function createReconciliationPlan(state: VibecoreState): ReconciliationPl
   const planIds = state.plans.filter((plan) => plan.status === "executing").map((plan) => plan.id).sort();
   const releaseIds = state.releases.filter((release) => release.status === "deploying").map((release) => release.id).sort();
   if (planIds.length === 0 && releaseIds.length === 0) throw new Error("No interrupted plans or deploying releases to reconcile");
-  const semantic = { action: "reconcile-interrupted" as const, planIds, releaseIds };
+  const stateDigest = selectedStateDigest(state, planIds, releaseIds);
+  const semantic = { action: "reconcile-interrupted" as const, planIds, releaseIds, stateDigest };
   return { ...semantic, digest: digestValue(semantic) };
 }
 
@@ -24,6 +26,9 @@ export function applyReconciliationPlan(
   now = new Date(),
 ): { plans: PlanLedgerEntry[]; releases: Release[] } {
   verify(plan, approval);
+  if (selectedStateDigest(state, plan.planIds, plan.releaseIds) !== plan.stateDigest) {
+    throw new Error("Reconciliation target state changed after planning; review a new plan");
+  }
   const timestamp = now.toISOString();
   const planIds = new Set(plan.planIds);
   const releaseIds = new Set(plan.releaseIds);
@@ -55,10 +60,11 @@ export async function applyReconciliationWithHealth(
   options: { fetch?: typeof fetch; now?: Date } = {},
 ): Promise<{ plans: PlanLedgerEntry[]; releases: Release[] }> {
   const next = applyReconciliationPlan(state, plan, approval, options.now);
+  const approvedReleaseIds = new Set(plan.releaseIds);
   const releases: Release[] = [];
   for (const release of next.releases) {
     const original = state.releases.find((candidate) => candidate.id === release.id);
-    if (original?.status === "deploying" && original.health?.url) {
+    if (approvedReleaseIds.has(release.id) && original?.status === "deploying" && original.health?.url) {
       releases.push(await recheckDeployingRelease(original, options));
     } else {
       releases.push(release);
@@ -71,4 +77,16 @@ function verify(plan: ReconciliationPlan, approval: string): void {
   const { digest, ...semantic } = plan;
   if (approval !== digest) throw new Error("Reconciliation approval does not match the generated digest");
   if (digestValue(semantic) !== digest) throw new Error("Reconciliation plan was modified after generation");
+}
+
+function selectedStateDigest(state: VibecoreState, planIds: string[], releaseIds: string[]): string {
+  function select<T extends { id: string }>(entries: T[], ids: string[]): T[] {
+    if (new Set(ids).size !== ids.length) throw new Error("Reconciliation contains duplicate target IDs");
+    return [...ids].sort().map((id) => {
+      const matches = entries.filter((entry) => entry.id === id);
+      if (matches.length !== 1) throw new Error(`Reconciliation target ${id} is missing or duplicated`);
+      return matches[0]!;
+    });
+  }
+  return digestValue({ plans: select(state.plans, planIds), releases: select(state.releases, releaseIds) });
 }

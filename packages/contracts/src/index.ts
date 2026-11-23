@@ -230,6 +230,18 @@ export interface VibecoreState {
   apiVersion: "vibecore.dev/state/v1alpha1";
   plans: PlanLedgerEntry[];
   releases: Release[];
+  deploymentAttempts?: DeploymentAttempt[];
+}
+
+/** CLI lifecycle evidence, deliberately not a claim about remote completion. */
+export interface DeploymentAttempt {
+  id: string;
+  command: string;
+  status: "running" | "command-completed" | "command-failed";
+  remoteOutcome: "unverified";
+  createdAt: string;
+  updatedAt: string;
+  exitCode?: number;
 }
 
 export type DevProcessStatus = "starting" | "healthy" | "running" | "stopping" | "stopped" | "failed";

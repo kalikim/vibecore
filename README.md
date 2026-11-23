@@ -62,6 +62,7 @@ The project is in active early development. The source of truth is:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): system boundaries and contracts
 - [`schemas/vibecore.schema.json`](schemas/vibecore.schema.json): initial manifest schema
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): delivery phases and acceptance gates
+- [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md): repeatable validation, portable-install checks, and release blockers
 - [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md): threats, safeguards, and limitations
 - [`docs/EDITOR_INTEGRATIONS.md`](docs/EDITOR_INTEGRATIONS.md): CLI and planned MCP integrations
 - [`docs/adr/`](docs/adr/): architecture decisions

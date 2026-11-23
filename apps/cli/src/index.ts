@@ -3,7 +3,7 @@ import { basename, resolve } from "node:path";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
-import type { DatabaseAdapterKind, DatabaseOperationPlan, Diagnostic } from "@vibecore/contracts";
+import type { DatabaseAdapterKind, DatabaseOperationPlan, DeploymentAttempt, Diagnostic } from "@vibecore/contracts";
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
 import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
@@ -362,7 +362,7 @@ program
         printJson(state);
         return;
       }
-      if (state.plans.length === 0 && state.releases.length === 0) {
+      if (state.plans.length === 0 && state.releases.length === 0 && !state.deploymentAttempts?.length) {
         console.log("No local executions have been recorded");
         return;
       }
@@ -371,6 +371,9 @@ program
       }
       for (const release of state.releases) {
         console.log(`${statusSymbol(release.status)} ${release.id}  ${release.application}  ${release.provider}/${release.mode}  ${release.status}`);
+      }
+      for (const attempt of state.deploymentAttempts ?? []) {
+        console.log(`${attempt.id}  ${attempt.command}  ${attempt.status}  remote outcome unverified  ${attempt.updatedAt}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -412,8 +415,11 @@ program
         return;
       }
       const next = await applyReconciliationWithHealth(state, plan, options.approve);
-      for (const id of plan.planIds) await store.finish(id, "interrupted");
-      for (const release of next.releases.filter((release) => plan.releaseIds.includes(release.id))) await store.updateRelease(release);
+      const selected = (value: typeof state | typeof next) => ({
+        plans: value.plans.filter((entry) => plan.planIds.includes(entry.id)),
+        releases: value.releases.filter((release) => plan.releaseIds.includes(release.id)),
+      });
+      await store.compareAndSwapRecords(selected(state), selected(next));
       if (options.json) printJson({ plan, plans: next.plans.filter((entry) => plan.planIds.includes(entry.id)), releases: next.releases.filter((release) => plan.releaseIds.includes(release.id)) });
       else console.log(`✓ Reconciled ${plan.planIds.length} plan(s) and ${plan.releaseIds.length} release(s)`);
     } catch (error) {
@@ -555,9 +561,10 @@ deploy.command("verify-health")
       const store = new FileStateStore(process.cwd());
       const release = (await store.releases()).find(({ id }) => id === options.release);
       if (!release) throw new Error(`Unknown release: ${options.release}`);
+      if (release.status !== "deploying") throw new Error("Health verification requires a deploying release; completed or rolled-back releases cannot be reopened");
       const health = await verifyDeploymentHealth(options.url, { attempts: parseInteger(options.attempts, "attempts"), timeoutSeconds: parseInteger(options.timeout, "timeout") });
       const updated = applyHealthResult(release, health);
-      await store.updateRelease(updated);
+      await store.updateRelease(updated, release);
       if (options.json) printJson({ release: updated }); else console.log(`${health.status === "healthy" ? "✓" : "✗"} ${release.id} is ${health.status} after ${health.attempts} attempt(s)`);
       process.exitCode = health.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.health_failed", error, options.json ?? false); }
@@ -617,7 +624,7 @@ deploy.command("self-hosted-rollback")
     try {
       const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release);
       const result = await executeSelfHostedRollback(plan, releases, { approval: options.approve, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.self_hosted_rollback_failed", error, options.json ?? false); }
@@ -712,8 +719,7 @@ deploy.command("vercel-rollback")
       const releases = await store.releases();
       const plan = createRollbackPlan(releases, options.release);
       const result = await executeVercelRollback(plan, releases, { approval: options.approve, token, orgId: options.org, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed);
-      await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release });
       else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Vercel rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
@@ -833,7 +839,7 @@ deploy.command("digitalocean-rollback")
   .option("--json", "print machine-readable JSON")
   .action(async (options: { release: string; healthUrl: string; approve: string; productionApproved?: boolean; json?: boolean }) => {
     try {
-      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN; if (!token) throw new Error("Set DIGITALOCEAN_ACCESS_TOKEN in the current process"); const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release); const result = await executeDigitalOceanRollback(plan, releases, { approval: options.approve, token, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false }); await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      const token = process.env.DIGITALOCEAN_ACCESS_TOKEN; if (!token) throw new Error("Set DIGITALOCEAN_ACCESS_TOKEN in the current process"); const store = new FileStateStore(process.cwd()); const releases = await store.releases(); const plan = createRollbackPlan(releases, options.release); const result = await executeDigitalOceanRollback(plan, releases, { approval: options.approve, token, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false }); await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean rollback release ${result.release.id} is ${result.release.status}`); process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.digitalocean_rollback_failed", error, options.json ?? false); }
   });
@@ -904,8 +910,7 @@ deploy.command("digitalocean-droplet-rollback")
       const releases = await store.releases();
       const plan = createRollbackPlan(releases, options.release);
       const result = await executeDigitalOceanDropletRollback(plan, releases, { approval: options.approve, token, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed);
-      await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release });
       else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} DigitalOcean Droplet rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
@@ -960,7 +965,7 @@ deploy.command("azure-rollback")
       const application = manifest.applications[plan.application];
       if (!application) throw new Error(`Application is not declared: ${plan.application}`);
       const result = await executeAzureRollback(plan, releases, { approval: options.approve, repositoryRoot: process.cwd(), applicationPath: application.path, tenantId: options.tenant, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Azure rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.azure_rollback_failed", error, options.json ?? false); }
@@ -1015,7 +1020,7 @@ deploy.command("aws-rollback")
       const releases = await store.releases();
       const plan = createRollbackPlan(releases, options.release);
       const result = await executeAwsRollback(plan, releases, { approval: options.approve, healthUrl: options.healthUrl, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed); await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release }); else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} AWS rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
     } catch (error) { printDeploymentError("deployment.aws_rollback_failed", error, options.json ?? false); }
@@ -1084,8 +1089,7 @@ deploy.command("shared-hosting-rollback")
       const releases = await store.releases();
       const plan = createRollbackPlan(releases, options.release);
       const result = await executeSharedHostingRollback(plan, releases, { approval: options.approve, host: options.host, user: options.user, remoteRoot: options.remoteRoot, healthUrl: options.healthUrl, sshKeyPath: options.sshKey, productionApproved: options.productionApproved ?? false });
-      await store.updateRelease(result.failed);
-      await store.recordRelease(result.release);
+      await store.commitRollback(releases.filter(({ id }) => id === plan.failedReleaseId || id === plan.targetReleaseId), result.failed, result.release);
       if (options.json) printJson({ plan, release: result.release });
       else console.log(`${result.release.status === "healthy" ? "✓" : "✗"} Rollback release ${result.release.id} is ${result.release.status}`);
       process.exitCode = result.release.status === "healthy" ? 0 : 1;
@@ -1480,7 +1484,40 @@ database
     } catch (error) { printDatabaseError(error, options.json ?? false); }
   });
 
-await program.parseAsync();
+let releaseDeploymentLease: (() => Promise<void>) | undefined;
+let deploymentAttempt: DeploymentAttempt | undefined;
+const deploymentAttemptStore = new FileStateStore(process.cwd());
+program.hook("preAction", async (_program, command) => {
+  const parent = command.parent?.name();
+  const options = command.opts();
+  const name = command.name();
+  const mutatingDeployment = parent === "deploy" && (
+    options.apply === true || name.endsWith("-rollback") || name === "verify-health"
+  );
+  const mutatingExpo = parent === "expo" && options.apply === true;
+  const reconciliation = name === "reconcile" && options.apply === true;
+  if (mutatingDeployment || mutatingExpo || reconciliation) {
+    releaseDeploymentLease = await new FileStateStore(process.cwd()).acquireDeploymentLease();
+    deploymentAttempt = await deploymentAttemptStore.startDeploymentAttempt(reconciliation ? "reconcile" : `${parent} ${name}`);
+  }
+});
+try {
+  await program.parseAsync();
+} catch (error) {
+  printDeploymentError("deployment.operation_failed", error, process.argv.includes("--json"));
+} finally {
+  let recorded = true;
+  if (deploymentAttempt) {
+    try {
+      await deploymentAttemptStore.finishDeploymentAttempt(deploymentAttempt, Number(process.exitCode ?? 0));
+    } catch (error) {
+      recorded = false;
+      printDeploymentError("deployment.attempt_record_failed", error, process.argv.includes("--json"));
+    }
+  }
+  // Keep the lease when completion could not be recorded, preventing blind retry.
+  if (recorded) await releaseDeploymentLease?.();
+}
 
 function toDiagnostic(error: unknown, manifestPath: string): Diagnostic {
   if (error instanceof ManifestValidationError) {

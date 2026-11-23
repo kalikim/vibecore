@@ -15,6 +15,7 @@ out/
 .netlify/
 coverage/
 *.tsbuildinfo
+packages/config/schemas/
 
 # Turborepo and tooling caches
 .turbo/

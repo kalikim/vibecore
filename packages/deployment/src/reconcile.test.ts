@@ -20,6 +20,44 @@ const state = (overrides: Partial<VibecoreState> = {}): VibecoreState => ({
 });
 
 describe("interrupted work reconciliation", () => {
+  it("binds approval to the selected release identity and health URL", async () => {
+    const recorded = { ...deploying, health: { url: "https://api.example.com/health", status: "unhealthy" as const, checkedAt: "2026-08-21T00:00:00.000Z", attempts: 1, durationMs: 10 } };
+    const plan = createReconciliationPlan(state({ releases: [recorded] }));
+    const request = vi.fn();
+    for (const changed of [
+      { ...recorded, sourceRevision: "different" },
+      { ...recorded, providerResourceId: "different-target" },
+      { ...recorded, health: { ...recorded.health, url: "https://other.example.com/health" } },
+    ]) {
+      await expect(applyReconciliationWithHealth(state({ releases: [changed] }), plan, plan.digest, { fetch: request })).rejects.toThrow("changed after planning");
+      expect(createReconciliationPlan(state({ releases: [changed] })).digest).not.toBe(plan.digest);
+    }
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("does not probe or change newly added releases outside the approved selection", async () => {
+    const plan = createReconciliationPlan(state());
+    const unrelated = { ...deploying, id: "new-release", health: { url: "https://unapproved.example.com/health", status: "unhealthy" as const, checkedAt: "2026-08-21T00:00:00.000Z", attempts: 1, durationMs: 10 } };
+    const request = vi.fn();
+    const next = await applyReconciliationWithHealth(state({ releases: [deploying, unrelated] }), plan, plan.digest, { fetch: request });
+    expect(next.releases[1]).toEqual(unrelated);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing or duplicate targets before changing state", () => {
+    const plan = createReconciliationPlan(state());
+    expect(() => applyReconciliationPlan(state({ releases: [] }), plan, plan.digest)).toThrow("missing or duplicated");
+    expect(() => applyReconciliationPlan(state({ plans: [executing, executing] }), plan, plan.digest)).toThrow("missing or duplicated");
+    expect(() => createReconciliationPlan(state({ releases: [deploying, deploying] }))).toThrow("duplicate target");
+  });
+
+  it("rejects changed action state and modified plans", () => {
+    const plan = createReconciliationPlan(state());
+    const changed = { ...executing, actions: [{ id: "a", status: "failed" as const }] };
+    expect(() => applyReconciliationPlan(state({ plans: [changed] }), plan, plan.digest)).toThrow("changed after planning");
+    expect(() => applyReconciliationPlan(state(), { ...plan, stateDigest: "tampered" }, plan.digest)).toThrow("modified after generation");
+  });
+
   it("plans only executing plans and deploying releases", () => {
     const plan = createReconciliationPlan(state());
     expect(plan).toMatchObject({ action: "reconcile-interrupted", planIds: ["plan-exec"], releaseIds: ["release-deploy"] });

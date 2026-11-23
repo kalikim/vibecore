@@ -6,3 +6,7 @@ packages:
 onlyBuiltDependencies:
   - esbuild
 
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
+
