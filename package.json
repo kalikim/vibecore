@@ -20,7 +20,7 @@
     "vibe": "pnpm build && node apps/cli/dist/index.js"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.6",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   }
