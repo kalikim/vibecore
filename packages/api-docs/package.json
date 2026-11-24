@@ -9,5 +9,5 @@
   "files": ["dist/**", "!dist/**/*.test.*"],
   "type": "module",
   "exports": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-  "dependencies": { "@codexsafari/vibecore-contracts": "workspace:*", "yaml": "^2.8.0" }
+  "dependencies": { "@codexsafari/vibecore-contracts": "workspace:*", "yaml": "^2.9.1" }
 }
