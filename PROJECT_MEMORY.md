@@ -88,6 +88,12 @@ Remaining release work needs explicit acceptance evidence:
 
 ### Alpha commit and publication attempt, 2026-11-24
 
+Release commit `120fd84` was pushed to main. GitHub run 45386146699 passed core
+and portable-install tests on Node 22/24 but failed tarball tests: Corepack chose
+pnpm 12 in the unpinned temporary consumer, ignoring pnpm 10 override settings.
+Fixed by inheriting the root packageManager in that consumer. Publication remains
+pending a successful CI rerun; no package was published during this failure.
+
 User authorized committing and publishing the prepared alpha. npm authentication
 is verified; organization listing alone did not establish publishing permission.
 Release files passed diff whitespace checks and a targeted credential-pattern
