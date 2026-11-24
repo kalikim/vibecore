@@ -88,6 +88,15 @@ Remaining release work needs explicit acceptance evidence:
 
 ### Alpha commit and publication attempt, 2026-11-24
 
+Commit `ca165f1` passed GitHub CI run 45386632079 on Node 22 and 24, including
+tarball/installed CLI checks and the Node 24 Nginx integration gate. Release and
+CI fixes are committed and pushed. Actual `pnpm -r publish --access public --tag
+alpha` attempted the first package, @vibecore/contracts, and exited with npm E403:
+publishing requires 2FA or an appropriately authorized granular token. Login alone
+was insufficient. No successful publication was reported; do not advertise an
+available CLI release. User must complete publishing authentication locally;
+never request OTPs/tokens in chat. Recheck registry versions before retrying.
+
 Follow-up CI 45386415333 exposed missing registry metadata in fresh runner caches
 despite locked dependency tarballs being present. Tarball consumer now uses
 prefer-offline with exact lockfile version overrides, permitting registry metadata
