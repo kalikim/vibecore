@@ -24,7 +24,7 @@
     "@codexsafari/vibecore-planner": "workspace:*",
     "@codexsafari/vibecore-runtime": "workspace:*",
     "@codexsafari/vibecore-state": "workspace:*",
-    "commander": "^14.0.0",
+    "commander": "^15.1.0",
     "yaml": "^2.8.0"
   }
 }
