@@ -87,6 +87,20 @@ Remaining release work needs explicit acceptance evidence:
 
 ## Updating this memory
 
+### npm alpha submission accepted, 2026-11-24
+
+After user browser authentication, `pnpm -r publish --access public --tag alpha`
+completed with exit code 0 and success notices for all 16 @codexsafari packages,
+including @codexsafari/vibecore@0.1.0-alpha.1. npm reported each package is being
+processed and may take a few minutes to become available. Publication source:
+commit 9c8ec23, verified by GitHub CI run 45404732734 on Node 22/24.
+Immediate per-package registry checks returned E404 for all 16; a later CLI lookup
+also returned E404. Submission is accepted, but public registry availability and
+fresh installation remain unverified. Do not republish or change versions merely
+because processing is pending. Next: check every version/alpha tag/license, then
+install the registry CLI in a disposable directory and run CLI smoke tests before
+advertising installation. No website or production infrastructure was deployed.
+
 ### npm organization migration, 2026-11-24
 
 User reports @vibecore is taken and created codexsafari. Authenticated npm org
