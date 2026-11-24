@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PlanLedgerEntry, Release, VibecoreState } from "@vibecore/contracts";
+import type { PlanLedgerEntry, Release, VibecoreState } from "@codexsafari/vibecore-contracts";
 import { applyReconciliationPlan, applyReconciliationWithHealth, createReconciliationPlan } from "./reconcile.js";
 
 const executing: PlanLedgerEntry = {

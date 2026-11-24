@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ApplicationManifest, VibecoreManifest } from "@vibecore/contracts";
+import type { ApplicationManifest, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createDeploymentConfigurationPlan } from "./adapters.js";
 
 function manifest(application: ApplicationManifest): VibecoreManifest {

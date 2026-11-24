@@ -27,7 +27,7 @@ async function checkLinks(directory) {
 
 try {
   // No publication or remote deployment: create an isolated production install.
-  run("pnpm", ["--filter", "@vibecore/cli", "deploy", "--prod", "--offline", target]);
+  run("pnpm", ["--filter", "@codexsafari/vibecore", "deploy", "--prod", "--offline", target]);
   await checkLinks(target);
   run(process.execPath, ["--test", "tests/cli.smoke.mjs"], {
     ...process.env, VIBECORE_TEST_ENTRY: join(target, "dist/index.js"),

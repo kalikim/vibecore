@@ -63,12 +63,12 @@ try {
       assert.equal(packed.name, source.name);
       assert.equal(packed.version, source.version);
       for (const [name, version] of Object.entries(packed.dependencies ?? {})) {
-        if (name.startsWith("@vibecore/")) assert.equal(version, source.version);
+        if (name.startsWith("@codexsafari/vibecore-")) assert.equal(version, source.version);
       }
       for (const value of Object.values(packed.dependencies ?? {})) {
         assert.ok(!/^(workspace:|link:|file:)/.test(value), "Packed dependency still points at a workspace");
       }
-      if (source.name === "@vibecore/config") assert.ok(files.includes("package/schemas/vibecore.schema.json"));
+      if (source.name === "@codexsafari/vibecore-config") assert.ok(files.includes("package/schemas/vibecore.schema.json"));
       tarballs.push(archive);
       overrides[source.name] = `file:${archive}`;
     }
@@ -77,7 +77,7 @@ try {
   assert.equal(tarballs.length, 16, "Review the publication set when adding packages");
   await writeFile(join(consumer, "package.json"), JSON.stringify({ name: "vibecore-release-consumer", private: true, packageManager: workspace.packageManager, pnpm: { overrides } }));
   run("pnpm", ["add", "--prefer-offline", "--ignore-scripts", ...tarballs], consumer);
-  const entry = join(consumer, "node_modules/@vibecore/cli/dist/index.js");
+  const entry = join(consumer, "node_modules/@codexsafari/vibecore/dist/index.js");
   console.log(run(process.execPath, ["--test", "tests/cli.smoke.mjs"], root, { ...process.env, VIBECORE_TEST_ENTRY: entry }));
   assert.match(run(join(consumer, "node_modules/.bin/vibe"), ["--help"], consumer), /Local-first application orchestration/);
   console.log(`${tarballs.length} MIT-licensed tarballs checked; installed CLI and bin passed. Nothing was published.`);

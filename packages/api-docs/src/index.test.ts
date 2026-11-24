@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createOpenApiScaffold, listApiDocumentationAdapters, writeOpenApiScaffold } from "./index.js";
 
 const manifest: VibecoreManifest = { apiVersion: "vibecore.dev/v1alpha1", kind: "Application", metadata: { name: "shop" }, applications: { api: { type: "api", language: "python", framework: "fastapi", path: "api", health: { path: "/health" } } }, environments: { local: { runtime: "local-process" } } };

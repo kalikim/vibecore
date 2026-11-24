@@ -1,9 +1,9 @@
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Diagnostic, VibecoreManifest } from "@vibecore/contracts";
-import { scanRepository } from "@vibecore/discovery";
-import { buildProjectGraph } from "@vibecore/project-graph";
-import { resolveEnvironment } from "@vibecore/environment";
+import type { Diagnostic, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { scanRepository } from "@codexsafari/vibecore-discovery";
+import { buildProjectGraph } from "@codexsafari/vibecore-project-graph";
+import { resolveEnvironment } from "@codexsafari/vibecore-environment";
 
 export async function diagnoseProject(
   manifest: VibecoreManifest,

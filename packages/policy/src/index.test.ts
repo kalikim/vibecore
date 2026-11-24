@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Action, Plan } from "@vibecore/contracts";
+import type { Action, Plan } from "@codexsafari/vibecore-contracts";
 import { evaluatePlan } from "./index.js";
 
 function plan(action: Action, environment = "local"): Plan {

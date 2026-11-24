@@ -1,5 +1,5 @@
-import type { Diagnostic } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { Diagnostic } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 
 export interface HostedDatabaseInspection {
   provider: string;

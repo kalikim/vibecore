@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { Diagnostic } from "@vibecore/contracts";
+import type { Diagnostic } from "@codexsafari/vibecore-contracts";
 
 export interface ExpoProfileInspection {
   name: string;

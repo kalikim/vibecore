@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import type { Release, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { createRelease } from "./releases.js";
 
 export type ExpoEasOperation = "build" | "update" | "submit";

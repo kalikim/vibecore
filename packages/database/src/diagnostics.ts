@@ -1,4 +1,4 @@
-import type { DatabaseStackDiagnosticResult, Diagnostic } from "@vibecore/contracts";
+import type { DatabaseStackDiagnosticResult, Diagnostic } from "@codexsafari/vibecore-contracts";
 import { getDatabaseAdapter, resolveDatabaseStack } from "./registry.js";
 
 interface VariableRule {

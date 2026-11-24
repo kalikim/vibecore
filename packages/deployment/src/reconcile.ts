@@ -1,5 +1,5 @@
-import type { PlanLedgerEntry, Release, VibecoreState } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { PlanLedgerEntry, Release, VibecoreState } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { applyHealthResult, verifyDeploymentHealth } from "./releases.js";
 
 export interface ReconciliationPlan {

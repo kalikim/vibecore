@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createExpoBuildPlan, createExpoSubmitPlan, createExpoUpdatePlan, executeExpoEasPlan, type ExpoCommandRunner } from "./expo.js";
 
 const revision = "abcdef1234567";

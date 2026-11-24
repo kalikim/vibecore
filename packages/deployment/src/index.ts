@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import type { ApplicationManifest, DeploymentCompatibility, DeploymentConfigurationPlan, DeploymentProviderKind, DeploymentProviderMetadata, DeploymentWorkload, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { ApplicationManifest, DeploymentCompatibility, DeploymentConfigurationPlan, DeploymentProviderKind, DeploymentProviderMetadata, DeploymentWorkload, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 export * from "./adapters.js";
 export * from "./releases.js";
 export * from "./self-hosted.js";

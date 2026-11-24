@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Release, VibecoreManifest } from "@vibecore/contracts";
+import type { Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { createAwsDeploymentPlan, executeAwsDeploymentPlan, executeAwsRollback, type AwsCommandRunner, type AwsDeploymentMode } from "./aws.js";
 

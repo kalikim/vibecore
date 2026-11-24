@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { DeploymentHealthResult, DeploymentRollbackPlan, Release, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { DeploymentHealthResult, DeploymentRollbackPlan, Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { applyHealthResult, createRelease, recordRollback, verifyDeploymentHealth } from "./releases.js";
 
 export interface VercelDeploymentPlan {

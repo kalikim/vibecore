@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { digestValue } from "@vibecore/planner";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 
 export interface GitHubEnvironmentPlanItem { name: "dev" | "staging" | "production"; production: boolean; secretNames: string[]; body: Record<string, unknown>; }
 export interface GitHubEnvironmentPlan { repository: string; digest: string; environments: GitHubEnvironmentPlanItem[]; productionReviewers: string[]; apiVersion: "2026-03-10"; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { applyGitHubSecretSyncPlan, createGitHubSecretSyncPlan, type GitHubSecretClient } from "./secret-sync.js";
 const manifest: VibecoreManifest = { apiVersion: "vibecore.dev/v1alpha1", kind: "Application", metadata: { name: "app" }, applications: { api: { type: "api", framework: "hono", path: "." } }, variables: { DATABASE_URL: { required: true, secret: true }, PUBLIC_URL: { required: true } }, environments: { dev: { runtime: "local-process" }, staging: { runtime: "github-actions" }, production: { runtime: "github-actions", production: true } } };
 describe("GitHub secret synchronization", () => {

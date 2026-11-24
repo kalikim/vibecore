@@ -2,7 +2,7 @@ import { access, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { allocateStablePort, parseCommand, startDevSession } from "./index.js";
 
 describe("runtime commands", () => {

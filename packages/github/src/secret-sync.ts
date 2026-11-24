@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import type { VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 
 export interface GitHubSecretSyncPlan { repository: string; environment: "dev" | "staging" | "production"; secretNames: string[]; digest: string; }
 export interface GitHubSecretClient { setEnvironmentSecret(repository: string, environment: string, name: string, value: string): Promise<void>; }

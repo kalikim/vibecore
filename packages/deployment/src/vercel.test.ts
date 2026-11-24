@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { Release, VibecoreManifest } from "@vibecore/contracts";
+import type { Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { applyVercelLinkPlan, createVercelDeploymentPlan, createVercelLinkPlan, executeVercelDeploymentPlan, executeVercelRollback, type VercelCommandRunner } from "./vercel.js";
 

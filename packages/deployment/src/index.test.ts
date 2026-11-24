@@ -2,7 +2,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { applyDeploymentConfigurationPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, getDeploymentProvider, listDeploymentProviders } from "./index.js";
 const manifest: VibecoreManifest = { apiVersion: "vibecore.dev/v1alpha1", kind: "Application", metadata: { name: "app" }, applications: { web: { type: "web", framework: "next", path: "apps/web", commands: { build: "pnpm build" } } }, variables: { DATABASE_URL: { required: true, secret: true, applications: ["web"] } }, environments: { dev: { runtime: "local-process" }, staging: { runtime: "github-actions" }, production: { runtime: "github-actions", production: true } } };
 describe("Vercel preview configuration", () => {

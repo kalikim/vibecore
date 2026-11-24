@@ -1,10 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
-import type { Plan } from "@vibecore/contracts";
-import type { ManifestWriteInput } from "@vibecore/planner";
-import { verifyPlanDigest } from "@vibecore/planner";
-import { evaluatePlan } from "@vibecore/policy";
-import { FileStateStore } from "@vibecore/state";
+import type { Plan } from "@codexsafari/vibecore-contracts";
+import type { ManifestWriteInput } from "@codexsafari/vibecore-planner";
+import { verifyPlanDigest } from "@codexsafari/vibecore-planner";
+import { evaluatePlan } from "@codexsafari/vibecore-policy";
+import { FileStateStore } from "@codexsafari/vibecore-state";
 
 export interface ExecutionResult {
   planId: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { DeploymentConfigurationPlan, Release } from "@vibecore/contracts";
+import type { DeploymentConfigurationPlan, Release } from "@codexsafari/vibecore-contracts";
 import { applyHealthResult, createRelease, createRollbackPlan, recordRollback, verifyDeploymentHealth } from "./releases.js";
 
 const plan: DeploymentConfigurationPlan = { provider: "railway", application: "api", environment: "staging", sourceRevision: "abcdef1234567", digest: "plan-digest", files: [], requiredSecretNames: ["DATABASE_URL"], notes: [] };

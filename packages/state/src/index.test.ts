@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { Plan, Release } from "@vibecore/contracts";
+import type { Plan, Release } from "@codexsafari/vibecore-contracts";
 import { FileStateStore } from "./index.js";
 
 const plan: Plan = {

@@ -8,9 +8,9 @@ Node.js 22 or newer. The public source is MIT licensed.
 Once this version is published to npm, run from your application's directory:
 
 ```sh
-npx @vibecore/cli@0.1.0-alpha.1 --help
-npx @vibecore/cli@0.1.0-alpha.1 adopt --json
-npx @vibecore/cli@0.1.0-alpha.1 plan --environment dev --budget-conscious
+npx @codexsafari/vibecore@0.1.0-alpha.1 --help
+npx @codexsafari/vibecore@0.1.0-alpha.1 adopt --json
+npx @codexsafari/vibecore@0.1.0-alpha.1 plan --environment dev --budget-conscious
 ```
 
 Inspection and advisory planning do not deploy your application. Review plans

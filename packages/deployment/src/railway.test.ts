@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRailwayDeploymentPlan, executeRailwayDeploymentPlan, type RailwayCommandRunner } from "./railway.js";
 
 const revision = "abcdef1234567890abcdef1234567890abcdef12";

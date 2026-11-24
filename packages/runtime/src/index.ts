@@ -10,9 +10,9 @@ import type {
   DevResourceRecord,
   DevSessionRecord,
   VibecoreManifest,
-} from "@vibecore/contracts";
-import { buildProjectGraph, topologicalApplications } from "@vibecore/project-graph";
-import { resolveEnvironment, valuesForApplication } from "@vibecore/environment";
+} from "@codexsafari/vibecore-contracts";
+import { buildProjectGraph, topologicalApplications } from "@codexsafari/vibecore-project-graph";
+import { resolveEnvironment, valuesForApplication } from "@codexsafari/vibecore-environment";
 import { startComposeSession, type CommandRunner, type ComposeSession } from "./compose.js";
 
 export { startComposeSession, runCommand } from "./compose.js";

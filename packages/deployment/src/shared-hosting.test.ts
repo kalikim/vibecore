@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { createSharedHostingPlan, executeSharedHostingPlan, executeSharedHostingRollback, type SharedHostingMode } from "./shared-hosting.js";
 import type { DeploymentCommandRunner } from "./self-hosted.js";

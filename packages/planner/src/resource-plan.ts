@@ -1,6 +1,6 @@
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RepositoryScan, VibecoreManifest } from "@vibecore/contracts";
+import type { RepositoryScan, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { digestValue } from "./index.js";
 
 export interface ResourcePlan {

@@ -4,7 +4,7 @@ import type {
   ProjectGraph,
   ProjectNode,
   VibecoreManifest,
-} from "@vibecore/contracts";
+} from "@codexsafari/vibecore-contracts";
 
 export function buildProjectGraph(manifest: VibecoreManifest): ProjectGraph {
   const nodes: ProjectNode[] = [];

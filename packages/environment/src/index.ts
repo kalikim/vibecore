@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Diagnostic, VibecoreManifest } from "@vibecore/contracts";
+import type { Diagnostic, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 
 export interface EnvironmentResolution {
   name: string;

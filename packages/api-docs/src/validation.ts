@@ -1,7 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { parse } from "yaml";
-import type { Diagnostic, DiscoveredApiRoute } from "@vibecore/contracts";
+import type { Diagnostic, DiscoveredApiRoute } from "@codexsafari/vibecore-contracts";
 
 const httpMethods = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
 

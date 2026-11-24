@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
-import type { ApiDocumentationAdapter, Diagnostic, DiscoveredApiRoute, OpenApiScaffold, VibecoreManifest } from "@vibecore/contracts";
+import type { ApiDocumentationAdapter, Diagnostic, DiscoveredApiRoute, OpenApiScaffold, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 export { discoverApiRoutes } from "./routes.js";
 export { validateOpenApiDocument, validateOpenApiFile } from "./validation.js";
 

@@ -1,4 +1,4 @@
-import { digestValue } from "@vibecore/planner";
+import { digestValue } from "@codexsafari/vibecore-planner";
 
 export interface NginxPlanOptions {
   domain: string;

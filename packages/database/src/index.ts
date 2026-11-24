@@ -8,7 +8,7 @@ import type {
   DatabaseMigrationRisk,
   PrismaDatabaseInspection,
   PrismaLiveCheck,
-} from "@vibecore/contracts";
+} from "@codexsafari/vibecore-contracts";
 export * from "./registry.js";
 export * from "./diagnostics.js";
 export * from "./local-runtime.js";

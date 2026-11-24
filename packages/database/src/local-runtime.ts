@@ -1,4 +1,4 @@
-import type { Diagnostic, ResourceManifest, VibecoreManifest } from "@vibecore/contracts";
+import type { Diagnostic, ResourceManifest, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { stringify } from "yaml";
 
 export interface LocalDatabaseService {

@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { RepositoryScan, VibecoreManifest } from "@vibecore/contracts";
+import type { RepositoryScan, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createResourcePlan, saveResourcePlan, verifyResourcePlan } from "./resource-plan.js";
 
 const scan: RepositoryScan = { root: "/repo", fingerprint: "input-one", applications: [], resources: [], diagnostics: [] };

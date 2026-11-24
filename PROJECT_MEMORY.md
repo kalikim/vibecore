@@ -53,7 +53,8 @@ tested code paths, not successful live cloud deployments or security certificati
 
 Root package metadata is version `0.1.0-alpha.1`, `private: true`, and
 `license: MIT` following the user's explicit license choice. Repository CI and Dependabot configuration were added locally
-on 2026-11-23 under `.github/`; no GitHub run or branch-protection setup is verified.
+on 2026-11-23 under `.github/`; prior alpha CI passed on Node 22/24.
+Branch-protection setup remains unverified; each new release commit needs its own CI result.
 Workflow generation for users is distinct from CI configured for Vibecore itself.
 
 Remaining release work needs explicit acceptance evidence:
@@ -85,6 +86,21 @@ Remaining release work needs explicit acceptance evidence:
   GitHub may strip inline styles. Avoid em dashes in README copy.
 
 ## Updating this memory
+
+### npm organization migration, 2026-11-24
+
+User reports @vibecore is taken and created codexsafari. Authenticated npm org
+inspection confirms kalikimanzi is an owner of codexsafari. CLI renamed to
+@codexsafari/vibecore and 15 supporting packages to @codexsafari/vibecore-*.
+Product name Vibecore, executable vibe, MIT license, version 0.1.0-alpha.1, and
+alpha publication tag are unchanged. Updated imports, manifests, verification
+scripts, lockfile, CLI README, and publishing docs. Historical memory entries
+retain old package names for accuracy. No private website files changed.
+Prior publication under @vibecore failed with E404 after browser authentication;
+no successful release was confirmed. New-scope publication is still pending.
+Checks passed for the migration: pnpm check (196 unit tests, 10 CLI tests),
+test:package, test:tarballs (16 archives and installed CLI), test:nginx, and diff
+check. Next: commit/push, verify new-scope CI, then publish and inspect registry.
 
 ### Alpha commit and publication attempt, 2026-11-24
 

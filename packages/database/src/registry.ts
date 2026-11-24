@@ -6,7 +6,7 @@ import type {
   DatabaseCapability,
   DetectedDatabaseIntegration,
   DetectionEvidence,
-} from "@vibecore/contracts";
+} from "@codexsafari/vibecore-contracts";
 
 const capabilityOrder: DatabaseCapability[] = [
   "detect", "inspect", "validate", "local-runtime", "provision", "deploy-migrations", "backup", "branching",

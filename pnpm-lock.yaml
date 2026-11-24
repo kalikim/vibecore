@@ -21,40 +21,40 @@ importers:
 
   apps/cli:
     dependencies:
-      '@vibecore/api-docs':
+      '@codexsafari/vibecore-api-docs':
         specifier: workspace:*
         version: link:../../packages/api-docs
-      '@vibecore/config':
+      '@codexsafari/vibecore-config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@vibecore/database':
+      '@codexsafari/vibecore-database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@vibecore/deployment':
+      '@codexsafari/vibecore-deployment':
         specifier: workspace:*
         version: link:../../packages/deployment
-      '@vibecore/diagnostics':
+      '@codexsafari/vibecore-diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
-      '@vibecore/discovery':
+      '@codexsafari/vibecore-discovery':
         specifier: workspace:*
         version: link:../../packages/discovery
-      '@vibecore/executor':
+      '@codexsafari/vibecore-executor':
         specifier: workspace:*
         version: link:../../packages/executor
-      '@vibecore/github':
+      '@codexsafari/vibecore-github':
         specifier: workspace:*
         version: link:../../packages/github
-      '@vibecore/planner':
+      '@codexsafari/vibecore-planner':
         specifier: workspace:*
         version: link:../../packages/planner
-      '@vibecore/runtime':
+      '@codexsafari/vibecore-runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@vibecore/state':
+      '@codexsafari/vibecore-state':
         specifier: workspace:*
         version: link:../../packages/state
       commander:
@@ -66,7 +66,7 @@ importers:
 
   packages/api-docs:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
       yaml:
@@ -75,7 +75,7 @@ importers:
 
   packages/config:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
       ajv:
@@ -89,10 +89,10 @@ importers:
 
   packages/database:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/planner':
+      '@codexsafari/vibecore-planner':
         specifier: workspace:*
         version: link:../planner
       yaml:
@@ -101,61 +101,61 @@ importers:
 
   packages/deployment:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/planner':
+      '@codexsafari/vibecore-planner':
         specifier: workspace:*
         version: link:../planner
 
   packages/diagnostics:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/discovery':
+      '@codexsafari/vibecore-discovery':
         specifier: workspace:*
         version: link:../discovery
-      '@vibecore/environment':
+      '@codexsafari/vibecore-environment':
         specifier: workspace:*
         version: link:../environment
-      '@vibecore/project-graph':
+      '@codexsafari/vibecore-project-graph':
         specifier: workspace:*
         version: link:../project-graph
 
   packages/discovery:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
 
   packages/environment:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
 
   packages/executor:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/planner':
+      '@codexsafari/vibecore-planner':
         specifier: workspace:*
         version: link:../planner
-      '@vibecore/policy':
+      '@codexsafari/vibecore-policy':
         specifier: workspace:*
         version: link:../policy
-      '@vibecore/state':
+      '@codexsafari/vibecore-state':
         specifier: workspace:*
         version: link:../state
 
   packages/github:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/planner':
+      '@codexsafari/vibecore-planner':
         specifier: workspace:*
         version: link:../planner
       yaml:
@@ -164,7 +164,7 @@ importers:
 
   packages/planner:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
       yaml:
@@ -173,34 +173,34 @@ importers:
 
   packages/policy:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
 
   packages/project-graph:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
 
   packages/runtime:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@vibecore/database':
+      '@codexsafari/vibecore-database':
         specifier: workspace:*
         version: link:../database
-      '@vibecore/environment':
+      '@codexsafari/vibecore-environment':
         specifier: workspace:*
         version: link:../environment
-      '@vibecore/project-graph':
+      '@codexsafari/vibecore-project-graph':
         specifier: workspace:*
         version: link:../project-graph
 
   packages/state:
     dependencies:
-      '@vibecore/contracts':
+      '@codexsafari/vibecore-contracts':
         specifier: workspace:*
         version: link:../contracts
 

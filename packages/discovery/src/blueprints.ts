@@ -1,4 +1,4 @@
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 
 export interface BlueprintSummary {
   id: string;

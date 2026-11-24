@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/contracts",
+  "name": "@codexsafari/vibecore-contracts",
   "version": "0.1.0-alpha.1",
   "private": false,
   "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },

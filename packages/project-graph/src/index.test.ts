@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { buildProjectGraph, topologicalApplications } from "./index.js";
 
 function manifest(applications: VibecoreManifest["applications"]): VibecoreManifest {

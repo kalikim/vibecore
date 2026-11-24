@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Release, VibecoreManifest } from "@vibecore/contracts";
+import type { Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { createAzureDeploymentPlan, executeAzureDeploymentPlan, executeAzureRollback, type AzureCommandRunner, type AzureDeploymentMode } from "./azure.js";
 

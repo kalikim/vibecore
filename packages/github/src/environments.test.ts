@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { applyGitHubEnvironmentPlan, createGitHubEnvironmentPlan, type GitHubEnvironmentClient } from "./environments.js";
 const manifest: VibecoreManifest = { apiVersion: "vibecore.dev/v1alpha1", kind: "Application", metadata: { name: "app" }, applications: { api: { type: "api", framework: "hono", path: "." } }, variables: { DATABASE_URL: { required: true, secret: true } }, environments: { dev: { runtime: "local-process" }, staging: { runtime: "github-actions" }, production: { runtime: "github-actions", production: true } } };
 describe("GitHub environments", () => {

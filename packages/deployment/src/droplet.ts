@@ -1,8 +1,8 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DeploymentHealthResult, DeploymentRollbackPlan, Release, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { DeploymentHealthResult, DeploymentRollbackPlan, Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { applyHealthResult, createRelease, recordRollback, verifyDeploymentHealth } from "./releases.js";
 import { SpawnDeploymentCommandRunner, type DeploymentCommandRunner } from "./self-hosted.js";
 

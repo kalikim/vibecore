@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { access, lstat, mkdir, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import type { VibecoreManifest } from "@vibecore/contracts";
-import { buildLocalDatabaseCompose } from "@vibecore/database";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { buildLocalDatabaseCompose } from "@codexsafari/vibecore-database";
 
 export interface CommandResult {
   exitCode: number;

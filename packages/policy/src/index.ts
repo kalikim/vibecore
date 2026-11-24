@@ -1,4 +1,4 @@
-import type { Plan, PolicyDecision } from "@vibecore/contracts";
+import type { Plan, PolicyDecision } from "@codexsafari/vibecore-contracts";
 
 export interface PolicyContext {
   approval?: string;

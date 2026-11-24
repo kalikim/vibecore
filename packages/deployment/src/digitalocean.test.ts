@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Release, VibecoreManifest } from "@vibecore/contracts";
+import type { Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { createDigitalOceanDeploymentPlan, createDigitalOceanImagePlan, executeDigitalOceanDeploymentPlan, executeDigitalOceanImagePlan, executeDigitalOceanRollback, type DigitalOceanCommandRunner } from "./digitalocean.js";
 

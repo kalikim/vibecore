@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import type { ApplicationManifest, DeploymentConfigurationPlan, DeploymentWorkload, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { ApplicationManifest, DeploymentConfigurationPlan, DeploymentWorkload, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { evaluateDeploymentCompatibility, getDeploymentProvider, inferDeploymentWorkload } from "./index.js";
 
 export interface DeploymentSetupOptions {

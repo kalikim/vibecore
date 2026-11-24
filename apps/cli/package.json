@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/cli",
+  "name": "@codexsafari/vibecore",
   "version": "0.1.0-alpha.1",
   "private": false,
   "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },
@@ -12,18 +12,18 @@
     "vibe": "./dist/index.js"
   },
   "dependencies": {
-    "@vibecore/api-docs": "workspace:*",
-    "@vibecore/config": "workspace:*",
-    "@vibecore/contracts": "workspace:*",
-    "@vibecore/database": "workspace:*",
-    "@vibecore/diagnostics": "workspace:*",
-    "@vibecore/discovery": "workspace:*",
-    "@vibecore/deployment": "workspace:*",
-    "@vibecore/executor": "workspace:*",
-    "@vibecore/github": "workspace:*",
-    "@vibecore/planner": "workspace:*",
-    "@vibecore/runtime": "workspace:*",
-    "@vibecore/state": "workspace:*",
+    "@codexsafari/vibecore-api-docs": "workspace:*",
+    "@codexsafari/vibecore-config": "workspace:*",
+    "@codexsafari/vibecore-contracts": "workspace:*",
+    "@codexsafari/vibecore-database": "workspace:*",
+    "@codexsafari/vibecore-diagnostics": "workspace:*",
+    "@codexsafari/vibecore-discovery": "workspace:*",
+    "@codexsafari/vibecore-deployment": "workspace:*",
+    "@codexsafari/vibecore-executor": "workspace:*",
+    "@codexsafari/vibecore-github": "workspace:*",
+    "@codexsafari/vibecore-planner": "workspace:*",
+    "@codexsafari/vibecore-runtime": "workspace:*",
+    "@codexsafari/vibecore-state": "workspace:*",
     "commander": "^14.0.0",
     "yaml": "^2.8.0"
   }

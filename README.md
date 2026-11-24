@@ -6,6 +6,7 @@ License: [MIT](LICENSE). This covers the public Vibecore repository, not the
 separate private website. Third-party dependencies retain their own licenses.
 
 Release preparation: `0.1.0-alpha.1`. npm publication is not yet verified.
+The npm CLI package is `@codexsafari/vibecore`; its executable remains `vibe`.
 Maintainers: follow the [alpha publishing checklist](docs/PUBLISHING.md).
 
 Vibecore is a local-first application orchestration platform for AI-assisted

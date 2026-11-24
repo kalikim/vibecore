@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import type { DeploymentHealthResult, Release, VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { DeploymentHealthResult, Release, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 import { applyHealthResult, createRelease, verifyDeploymentHealth } from "./releases.js";
 
 export interface RailwayDeploymentPlan {

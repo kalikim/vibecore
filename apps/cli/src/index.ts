@@ -3,19 +3,19 @@ import { basename, resolve } from "node:path";
 import { readFile, readdir } from "node:fs/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
-import { loadManifest, ManifestValidationError } from "@vibecore/config";
-import type { DatabaseAdapterKind, DatabaseOperationPlan, DeploymentAttempt, Diagnostic } from "@vibecore/contracts";
-import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
-import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
-import { applyAdoptionPlan } from "@vibecore/executor";
-import { createAdoptionPlan, createResourcePlan, saveResourcePlan, verifyResourcePlan } from "@vibecore/planner";
-import { FileStateStore } from "@vibecore/state";
-import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
-import { startDevSession } from "@vibecore/runtime";
-import { createNginxPlan } from "@vibecore/deployment";
-import { applyDeploymentConfigurationPlan, applyHealthResult, applyReconciliationWithHealth, applyVercelLinkPlan, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createDigitalOceanImagePlan, createExpoBuildPlan, createExpoSubmitPlan, createExpoUpdatePlan, createRailwayDeploymentPlan, createReconciliationPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelDeploymentPlan, createVercelLinkPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanImagePlan, executeDigitalOceanRollback, executeExpoEasPlan, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, executeVercelDeploymentPlan, executeVercelRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type ExpoEasPlan, type SharedHostingMode } from "@vibecore/deployment";
-import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
-import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, createNeonBranchPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, executeNeonBranchPlan, inspectDrizzleMigrations, inspectHostedDatabase, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
+import { loadManifest, ManifestValidationError } from "@codexsafari/vibecore-config";
+import type { DatabaseAdapterKind, DatabaseOperationPlan, DeploymentAttempt, Diagnostic } from "@codexsafari/vibecore-contracts";
+import { diagnoseProject, hasDiagnosticErrors } from "@codexsafari/vibecore-diagnostics";
+import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "@codexsafari/vibecore-discovery";
+import { applyAdoptionPlan } from "@codexsafari/vibecore-executor";
+import { createAdoptionPlan, createResourcePlan, saveResourcePlan, verifyResourcePlan } from "@codexsafari/vibecore-planner";
+import { FileStateStore } from "@codexsafari/vibecore-state";
+import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@codexsafari/vibecore-github";
+import { startDevSession } from "@codexsafari/vibecore-runtime";
+import { createNginxPlan } from "@codexsafari/vibecore-deployment";
+import { applyDeploymentConfigurationPlan, applyHealthResult, applyReconciliationWithHealth, applyVercelLinkPlan, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createDigitalOceanImagePlan, createExpoBuildPlan, createExpoSubmitPlan, createExpoUpdatePlan, createRailwayDeploymentPlan, createReconciliationPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelDeploymentPlan, createVercelLinkPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanImagePlan, executeDigitalOceanRollback, executeExpoEasPlan, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, executeVercelDeploymentPlan, executeVercelRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type ExpoEasPlan, type SharedHostingMode } from "@codexsafari/vibecore-deployment";
+import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@codexsafari/vibecore-api-docs";
+import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, createNeonBranchPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, executeNeonBranchPlan, inspectDrizzleMigrations, inspectHostedDatabase, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@codexsafari/vibecore-database";
 
 const program = new Command()
   .name("vibe")

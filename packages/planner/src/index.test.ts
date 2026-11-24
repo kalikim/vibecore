@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RepositoryScan, VibecoreManifest } from "@vibecore/contracts";
+import type { RepositoryScan, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createAdoptionPlan, verifyPlanDigest } from "./index.js";
 
 const scan: RepositoryScan = {

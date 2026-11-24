@@ -2,8 +2,8 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { RepositoryScan, VibecoreManifest } from "@vibecore/contracts";
-import { createAdoptionPlan } from "@vibecore/planner";
+import type { RepositoryScan, VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { createAdoptionPlan } from "@codexsafari/vibecore-planner";
 import { applyAdoptionPlan } from "./index.js";
 
 const manifest: VibecoreManifest = {

@@ -1,6 +1,6 @@
 import { readFile, readdir, realpath } from "node:fs/promises";
 import { extname, join, relative, resolve } from "node:path";
-import type { DetectedApplication, Diagnostic, DiscoveredApiRoute } from "@vibecore/contracts";
+import type { DetectedApplication, Diagnostic, DiscoveredApiRoute } from "@codexsafari/vibecore-contracts";
 
 const ignored = new Set([".git", ".next", ".vibecore", "build", "dist", "node_modules", "target", "vendor", "bin", "obj"]);
 const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".php", ".rs", ".java", ".kt", ".cs", ".fs"]);

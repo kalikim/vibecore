@@ -10,7 +10,7 @@ import type {
   LanguageAdapterMetadata,
   RepositoryScan,
   VibecoreManifest,
-} from "@vibecore/contracts";
+} from "@codexsafari/vibecore-contracts";
 
 interface PackageDocument {
   name?: string;

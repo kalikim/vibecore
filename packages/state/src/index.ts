@@ -11,7 +11,7 @@ import type {
   PlanLedgerEntry,
   Release,
   VibecoreState,
-} from "@vibecore/contracts";
+} from "@codexsafari/vibecore-contracts";
 
 const emptyState = (): VibecoreState => ({
   apiVersion: "vibecore.dev/state/v1alpha1",

@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/executor",
+  "name": "@codexsafari/vibecore-executor",
   "version": "0.1.0-alpha.1",
   "private": false,
   "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },
@@ -13,9 +13,9 @@
     "default": "./dist/index.js"
   },
   "dependencies": {
-    "@vibecore/contracts": "workspace:*",
-    "@vibecore/planner": "workspace:*",
-    "@vibecore/policy": "workspace:*",
-    "@vibecore/state": "workspace:*"
+    "@codexsafari/vibecore-contracts": "workspace:*",
+    "@codexsafari/vibecore-planner": "workspace:*",
+    "@codexsafari/vibecore-policy": "workspace:*",
+    "@codexsafari/vibecore-state": "workspace:*"
   }
 }

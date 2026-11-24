@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { Diagnostic, VibecoreManifest } from "@vibecore/contracts";
+import type { Diagnostic, VibecoreManifest } from "@codexsafari/vibecore-contracts";
 
 export interface RemoteGitHubEnvironment {
   name: string;

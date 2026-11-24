@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/github",
+  "name": "@codexsafari/vibecore-github",
   "version": "0.1.0-alpha.1",
   "private": false,
   "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },
@@ -9,5 +9,5 @@
   "files": ["dist/**", "!dist/**/*.test.*"],
   "type": "module",
   "exports": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-  "dependencies": { "@vibecore/contracts": "workspace:*", "@vibecore/planner": "workspace:*", "yaml": "^2.8.0" }
+  "dependencies": { "@codexsafari/vibecore-contracts": "workspace:*", "@codexsafari/vibecore-planner": "workspace:*", "yaml": "^2.8.0" }
 }

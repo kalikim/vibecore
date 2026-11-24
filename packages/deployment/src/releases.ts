@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { DeploymentConfigurationPlan, DeploymentHealthResult, DeploymentRollbackPlan, Release } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { DeploymentConfigurationPlan, DeploymentHealthResult, DeploymentRollbackPlan, Release } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 
 export function createRelease(plan: DeploymentConfigurationPlan, mode: string, now = new Date()): Release {
   const timestamp = now.toISOString();

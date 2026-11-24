@@ -1,5 +1,5 @@
 {
-  "name": "@vibecore/diagnostics",
+  "name": "@codexsafari/vibecore-diagnostics",
   "version": "0.1.0-alpha.1",
   "private": false,
   "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },
@@ -13,9 +13,9 @@
     "default": "./dist/index.js"
   },
   "dependencies": {
-    "@vibecore/contracts": "workspace:*",
-    "@vibecore/discovery": "workspace:*",
-    "@vibecore/environment": "workspace:*",
-    "@vibecore/project-graph": "workspace:*"
+    "@codexsafari/vibecore-contracts": "workspace:*",
+    "@codexsafari/vibecore-discovery": "workspace:*",
+    "@codexsafari/vibecore-environment": "workspace:*",
+    "@codexsafari/vibecore-project-graph": "workspace:*"
   }
 }

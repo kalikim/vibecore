@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { DatabaseMigrationFinding, DatabaseMigrationInspection, DatabaseMigrationRisk, DatabaseToolInspection, Diagnostic } from "@vibecore/contracts";
+import type { DatabaseMigrationFinding, DatabaseMigrationInspection, DatabaseMigrationRisk, DatabaseToolInspection, Diagnostic } from "@codexsafari/vibecore-contracts";
 import { assessMigrationSql } from "./index.js";
 
 const order: Record<DatabaseMigrationRisk, number> = { safe: 0, review: 1, destructive: 2 };

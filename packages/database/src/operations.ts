@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import type { DatabaseBackupEvidence, DatabaseMigrationRisk, DatabaseOperation, DatabaseOperationPlan, DatabaseToolName } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { DatabaseBackupEvidence, DatabaseMigrationRisk, DatabaseOperation, DatabaseOperationPlan, DatabaseToolName } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 
 export interface DatabaseCommandRunner {
   run(command: string, args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv; stdin?: string }): Promise<{ exitCode: number; stdout: string; stderr: string }>;

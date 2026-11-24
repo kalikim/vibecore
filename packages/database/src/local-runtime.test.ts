@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { buildLocalDatabaseCompose } from "./local-runtime.js";
 
 const manifest: VibecoreManifest = {

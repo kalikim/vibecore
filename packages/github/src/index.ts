@@ -1,8 +1,8 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { stringify } from "yaml";
-import type { VibecoreManifest } from "@vibecore/contracts";
-import { digestValue } from "@vibecore/planner";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
+import { digestValue } from "@codexsafari/vibecore-planner";
 export * from "./environments.js";
 export * from "./audit.js";
 export * from "./secret-sync.js";

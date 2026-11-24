@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { VibecoreManifest } from "@vibecore/contracts";
+import type { VibecoreManifest } from "@codexsafari/vibecore-contracts";
 import { createRollbackPlan } from "./releases.js";
 import { createSelfHostedDockerPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, type DeploymentCommandRunner } from "./self-hosted.js";
 
