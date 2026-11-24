@@ -16,6 +16,9 @@ out/
 coverage/
 *.tsbuildinfo
 packages/config/schemas/
+# Generated package copies of the authoritative root license
+apps/*/LICENSE
+packages/*/LICENSE
 
 # Turborepo and tooling caches
 .turbo/

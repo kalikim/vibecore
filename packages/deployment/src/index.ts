@@ -14,6 +14,7 @@ export * from "./droplet.js";
 export * from "./vercel.js";
 export * from "./reconcile.js";
 export * from "./expo.js";
+export * from "./nginx.js";
 
 const supportedFrameworks = new Set(["next", "nuxt", "remix", "vite-react"]);
 

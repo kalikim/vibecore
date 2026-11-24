@@ -2,6 +2,12 @@
 
 Website: [vibecore.build](https://vibecore.build)
 
+License: [MIT](LICENSE). This covers the public Vibecore repository, not the
+separate private website. Third-party dependencies retain their own licenses.
+
+Release preparation: `0.1.0-alpha.1`. npm publication is not yet verified.
+Maintainers: follow the [alpha publishing checklist](docs/PUBLISHING.md).
+
 Vibecore is a local-first application orchestration platform for AI-assisted
 developers. It coordinates the repetitive work around an application: project
 discovery, local services, Git and GitHub setup, database safety, validation,
@@ -68,6 +74,18 @@ The project is in active early development. The source of truth is:
 - [`docs/adr/`](docs/adr/): architecture decisions
 
 ## Intended experience
+
+Review a local resource-conscious report before starting remote work:
+
+```sh
+pnpm vibe plan --environment staging --budget-conscious
+pnpm vibe plan --environment staging --budget-conscious --save --json
+```
+
+Plan Mode makes no network or AI calls and executes no operations. It writes only
+when `--save` is supplied. Reports are advisory, costs remain unknown, and applying
+changes still requires an operation-specific plan. See [Plan Mode](docs/PLAN_MODE.md)
+for saved-report checks and limitations.
 
 ```sh
 vibe init
@@ -220,6 +238,20 @@ environment values, never CLI flags. Production uses `--prod` and requires
 `vibe deploy vercel-rollback`. Link an existing project locally with
 `vibe deploy vercel-link --application web --org <id> --project <id>` after
 exporting `VERCEL_TOKEN`.
+
+Preview an HTTPS Nginx reverse-proxy candidate for an existing certificate:
+
+```bash
+vibe deploy nginx --domain app.example.com --port 3000 --json
+```
+
+This is read-only configuration generation, not server setup. It validates inputs,
+targets a loopback upstream, and includes limitations and an activation checklist.
+It does not issue certificates, modify existing sites, or reload Nginx.
+See [Nginx candidates and source-only CLI access](docs/NGINX.md).
+
+Run `pnpm test:nginx` with Docker and OpenSSL on Linux to exercise the candidate
+against a real isolated Nginx instance, including HTTPS and failed-reload checks.
 
 Discover every deployment target and its honest implementation status:
 

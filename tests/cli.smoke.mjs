@@ -30,9 +30,46 @@ function run(cwd, args, expectedStatus = 0) {
 test("installed entry exposes help and rejects unknown commands", async (t) => {
   const root = await workspace(t);
   assert.match(run(root, ["--help"]), /Local-first application orchestration/);
-  assert.equal(run(root, ["--version"]).trim(), "0.0.0");
+  assert.equal(run(root, ["--version"]).trim(), "0.1.0-alpha.1");
   run(root, ["not-a-real-command"], 1);
   assert.deepEqual(await readdir(root), []);
+});
+
+test("nginx candidate is read-only and rejects injection and apply flags", async (t) => {
+  const root = await workspace(t);
+  const args = ["deploy", "nginx", "--domain", "app.example.com", "--port", "3000", "--json"];
+  const plan = JSON.parse(run(root, args));
+  assert.equal(plan.status, "unvalidated");
+  assert.match(plan.config, /127\.0\.0\.1:3000/);
+  run(root, [...args, "--apply"], 1);
+  run(root, ["deploy", "nginx", "--domain", "example.com; injected", "--port", "3000"], 1);
+  run(root, ["deploy", "nginx", "--domain", "example.com", "--port", "3e3"], 1);
+  assert.deepEqual(await readdir(root), []);
+});
+
+test("plan is read-only by default and saved reports reject changed inputs", async (t) => {
+  const root = await workspace(t);
+  const args = ["plan", "--environment", "staging", "--budget-conscious", "--json"];
+  const preview = JSON.parse(run(root, args));
+  assert.equal(preview.plan.kind, "advisory");
+  assert.equal(preview.plan.resourcePolicy.estimatedCloudCost, "unknown");
+  assert.deepEqual(await readdir(root), []);
+  const saved = JSON.parse(run(root, [...args, "--save"]));
+  assert.equal(saved.plan.digest, preview.plan.digest);
+  assert.equal(JSON.parse(run(root, [...args, "--check", saved.savedPath])).freshness, "matches-inspected-inputs");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "changed", dependencies: { hono: "1.0.0" } }));
+  const output = run(root, [...args, "--check", saved.savedPath], 1);
+  assert.match(output, /plan.unavailable/);
+  run(root, ["plan", "--apply"], 1);
+});
+
+test("plan fails closed on invalid manifests without leaking parser input", async (t) => {
+  const root = await workspace(t);
+  await writeFile(join(root, "vibecore.yaml"), "token: [super-sensitive-value\n");
+  const output = run(root, ["plan", "--json"], 1);
+  assert.match(output, /plan.unavailable/);
+  assert.ok(!output.includes("super-sensitive-value"));
+  assert.deepEqual(await readdir(root), ["vibecore.yaml"]);
 });
 
 test("deployment lease blocks mutation but not read-only discovery", async (t) => {

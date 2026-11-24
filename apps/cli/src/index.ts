@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { basename, resolve } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { loadManifest, ManifestValidationError } from "@vibecore/config";
@@ -7,10 +8,11 @@ import type { DatabaseAdapterKind, DatabaseOperationPlan, DeploymentAttempt, Dia
 import { diagnoseProject, hasDiagnosticErrors } from "@vibecore/diagnostics";
 import { createBlueprintManifest, createManifestProposal, inspectExpoProject, listBlueprints, listLanguageAdapters, scanRepository } from "@vibecore/discovery";
 import { applyAdoptionPlan } from "@vibecore/executor";
-import { createAdoptionPlan } from "@vibecore/planner";
+import { createAdoptionPlan, createResourcePlan, saveResourcePlan, verifyResourcePlan } from "@vibecore/planner";
 import { FileStateStore } from "@vibecore/state";
 import { applyGitHubEnvironmentPlan, applyGitHubSecretSyncPlan, applyGitHubSetupPlan, auditGitHubEnvironments, createGitHubEnvironmentPlan, createGitHubSecretSyncPlan, createGitHubSetupPlan } from "@vibecore/github";
 import { startDevSession } from "@vibecore/runtime";
+import { createNginxPlan } from "@vibecore/deployment";
 import { applyDeploymentConfigurationPlan, applyHealthResult, applyReconciliationWithHealth, applyVercelLinkPlan, createAwsDeploymentPlan, createAzureDeploymentPlan, createDeploymentConfigurationPlan, createDigitalOceanDeploymentPlan, createDigitalOceanDropletPlan, createDigitalOceanImagePlan, createExpoBuildPlan, createExpoSubmitPlan, createExpoUpdatePlan, createRailwayDeploymentPlan, createReconciliationPlan, createRollbackPlan, createSelfHostedDockerPlan, createSharedHostingPlan, createVercelDeploymentPlan, createVercelLinkPlan, createVercelPreviewPlan, evaluateDeploymentCompatibility, executeAwsDeploymentPlan, executeAwsRollback, executeAzureDeploymentPlan, executeAzureRollback, executeDigitalOceanDeploymentPlan, executeDigitalOceanDropletPlan, executeDigitalOceanDropletRollback, executeDigitalOceanImagePlan, executeDigitalOceanRollback, executeExpoEasPlan, executeRailwayDeploymentPlan, executeSelfHostedDockerPlan, executeSelfHostedRollback, executeSharedHostingPlan, executeSharedHostingRollback, executeVercelDeploymentPlan, executeVercelRollback, getDeploymentProvider, listDeploymentProviders, verifyDeploymentHealth, type AwsDeploymentMode, type AzureDeploymentMode, type ExpoEasPlan, type SharedHostingMode } from "@vibecore/deployment";
 import { createOpenApiScaffold, discoverApiRoutes, listApiDocumentationAdapters, validateOpenApiFile, writeOpenApiScaffold } from "@vibecore/api-docs";
 import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigratePlan, createDatabaseRestorePlan, createDatabaseSeedPlan, createNeonBranchPlan, diagnoseDatabaseStack, executeDatabaseOperationPlan, executeNeonBranchPlan, inspectDrizzleMigrations, inspectHostedDatabase, inspectMikroOrmMigrations, inspectMongoMigrations, inspectMongooseMigrations, inspectPrismaDatabase, inspectTypeOrmMigrations, listDatabaseAdapters, runPrismaLiveCheck } from "@vibecore/database";
@@ -18,7 +20,48 @@ import { buildLocalDatabaseCompose, createDatabaseBackupPlan, createDatabaseMigr
 const program = new Command()
   .name("vibe")
   .description("Local-first application orchestration")
-  .version("0.0.0");
+  .version(JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version);
+
+program.command("plan")
+  .description("Create a local, resource-conscious advisory plan without executing operations")
+  .option("-e, --environment <name>", "dev, staging, or production", "dev")
+  .option("--budget-conscious", "include resource-saving guidance")
+  .option("--save", "save the report under .vibecore/plans; the only optional write")
+  .option("--check <path>", "check a saved report against current inputs and the same options")
+  .option("--json", "print a compact machine-readable report")
+  .action(async (options: { environment: string; budgetConscious?: boolean; save?: boolean; check?: string; json?: boolean }) => {
+    try {
+      if (options.save && options.check) throw new Error("Use --save or --check, not both");
+      const root = process.cwd();
+      let manifest;
+      // Missing manifests are advisory; invalid manifests must not silently become missing.
+      let manifestExists = true;
+      try { await readFile(resolve(root, "vibecore.yaml"), "utf8"); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") manifestExists = false; else throw error; }
+      if (manifestExists) manifest = await loadManifest(resolve(root, "vibecore.yaml"));
+      let workflowPresent = false;
+      try { workflowPresent = (await readdir(resolve(root, ".github/workflows"))).some((name) => /\.ya?ml$/.test(name)); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      const plan = createResourcePlan({ scan: await scanRepository(root), ...(manifest ? { manifest } : {}), environment: options.environment, budgetConscious: options.budgetConscious ?? false, githubWorkflowPresent: workflowPresent });
+      if (options.check) verifyResourcePlan(JSON.parse(await readFile(resolve(root, options.check), "utf8")), plan);
+      const savedPath = options.save ? await saveResourcePlan(root, plan) : undefined;
+      if (options.json) printJson({ plan, ...(savedPath ? { savedPath } : {}), ...(options.check ? { freshness: "matches-inspected-inputs" } : {}) });
+      else {
+        console.log(`Advisory plan: ${plan.environment}\nDigest: ${plan.digest}\nCloud cost: unknown. No network or AI calls; no operations executed.`);
+        for (const finding of plan.findings) console.log(`${finding.severity}: ${finding.message}`);
+        for (const step of plan.steps) console.log(`\n${step.command}\n  ${step.purpose}`);
+        for (const advice of plan.guidance) console.log(`\n${advice}`);
+        for (const limit of plan.limitations) console.log(`Note: ${limit}`);
+        if (savedPath) console.log(`Saved: ${savedPath}`);
+        if (options.check) console.log("Saved plan matches inspected inputs and options.");
+      }
+      process.exitCode = plan.findings.some(({ severity }) => severity === "error") ? 1 : 0;
+    } catch {
+      // Do not echo YAML/JSON parser excerpts that may contain literal credentials.
+      printDiagnostics([{ code: "plan.unavailable", severity: "error", message: "Cannot create or verify plan. Check manifest validity, environment/options, file permissions, and saved-plan freshness. No operation was executed." }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
 
 program
   .command("languages")
@@ -481,6 +524,27 @@ program
   });
 
 const deploy = program.command("deploy").description("Plan provider deployment configuration");
+
+deploy.command("nginx")
+  .description("Preview an HTTPS reverse-proxy candidate only; never changes a server")
+  .requiredOption("--domain <hostname>", "single DNS hostname with an existing TLS certificate")
+  .requiredOption("--port <port>", "loopback application port (1024-65535)")
+  .option("--json", "print the candidate, digest, limitations, and review checklist")
+  .action((options: { domain: string; port: string; json?: boolean }) => {
+    try {
+      if (!/^[0-9]+$/.test(options.port)) throw new Error("Port must be numeric");
+      const plan = createNginxPlan({ domain: options.domain, port: Number(options.port) });
+      if (options.json) printJson(plan);
+      else {
+        console.log(plan.config);
+        console.log(`# Digest: ${plan.digest}`);
+        for (const note of [...plan.limitations, ...plan.activationChecklist]) console.log(`# ${note}`);
+      }
+    } catch {
+      printDiagnostics([{ code: "nginx.invalid_options", severity: "error", message: "Use a single DNS hostname and an integer port from 1024 to 65535. No server changes were made." }], options.json ?? false);
+      process.exitCode = 1;
+    }
+  });
 
 deploy.command("support")
   .description("Show deployment providers, modes, affordability profiles, and implementation status")

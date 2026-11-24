@@ -1,9 +1,9 @@
 {
   "name": "vibecore",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "description": "Local-first application orchestration for AI-assisted developers",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "packageManager": "pnpm@10.30.3",
   "engines": {
     "node": ">=22.0.0"
@@ -14,6 +14,8 @@
     "typecheck": "node scripts/prepare-assets.mjs && tsc -b --pretty false",
     "test:cli": "pnpm build && node --test tests/cli.smoke.mjs",
     "test:package": "pnpm build && node scripts/verify-package.mjs",
+    "test:tarballs": "pnpm build && node scripts/verify-tarballs.mjs",
+    "test:nginx": "pnpm build && node scripts/verify-nginx.mjs",
     "test": "vitest run",
     "vibe": "pnpm build && node apps/cli/dist/index.js"
   },

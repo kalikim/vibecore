@@ -12,6 +12,8 @@ corepack enable
 pnpm install --frozen-lockfile
 pnpm check
 pnpm test:package
+pnpm test:tarballs
+pnpm test:nginx
 ```
 
 `check` compiles the workspace, runs the unit/integration suite, and invokes the
@@ -23,6 +25,20 @@ checks that its symlinks remain inside that installation, and repeats the CLI
 tests against that entry point. Deployment here means local package assembly,
 not a cloud deployment. It runs offline after dependencies are installed and
 removes only its own temporary directory. It does not publish to npm.
+
+`test:nginx` requires Linux, Docker, and OpenSSL. It exercises the generated HTTPS
+candidate against a pinned Nginx container with a synthetic upstream and disposable
+certificate. It tests redirects, proxy headers, sensitive paths, body limits,
+invalid configurations, and failed-reload survival. Only loopback ports are exposed;
+no production host is contacted. See `docs/NGINX.md` for scope and cleanup limits.
+
+`test:tarballs` creates actual tarballs for all 16 workspace packages, checks their
+file allowlists, MIT license text, schema inclusion, and rewritten dependency
+references. It installs them into a temporary consumer using local tarball overrides
+for unpublished internal packages, then runs CLI smoke tests and the installed
+`vibe` executable. It uses the local pnpm cache offline and disables install scripts.
+It does not prove npm registry availability or publish anything. Linux `tar` is
+required. Temporary archives and the consumer are removed after verification.
 
 Package file allowlists include compiled output and the config package's schema,
 excluding compiled tests. `schemas/vibecore.schema.json` remains authoritative;
@@ -44,7 +60,7 @@ push, and review the actual checks before calling CI operational.
     <tr><td>Repository CI</td><td>Both Node matrix jobs pass on GitHub. Configure branch protection separately.</td></tr>
     <tr><td>Live operations</td><td>Approved test targets demonstrate deployment, failed health checks, supported rollback, migrations, backup/restore, and interruption recovery. Mocked runners are insufficient.</td></tr>
     <tr><td>Security review</td><td>Audit target identity, exact-plan approvals, stale revisions, secret handling, concurrent execution, and failure recording across every executor.</td></tr>
-    <tr><td>Distribution</td><td>Choose a license, package name/version and publication policy; verify the actual release artifact. Packages remain private and UNLICENSED until that decision.</td></tr>
+    <tr><td>Distribution</td><td>MIT applied. All 16 workspace packages are prepared as 0.1.0-alpha.1 with public access and the alpha tag; the root remains private. Pass tarball checks, verify publishing permissions, and publish from the reviewed clean revision. Registry publication is not yet verified.</td></tr>
     <tr><td>Capability promises</td><td>Document unsupported provider modes, manifest-only blueprints, and Expo asynchronous completion limits. Keep MCP, team dashboard, and isolated plugins marked as future work.</td></tr>
   </tbody>
 </table>

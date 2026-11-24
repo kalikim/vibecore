@@ -1,7 +1,11 @@
 {
   "name": "@vibecore/contracts",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0-alpha.1",
+  "private": false,
+  "publishConfig": { "access": "public", "tag": "alpha", "registry": "https://registry.npmjs.org/" },
+  "engines": { "node": ">=22.0.0" },
+  "repository": { "type": "git", "url": "git+https://github.com/kalikim/vibecore.git", "directory": "packages/contracts" },
+  "license": "MIT",
   "files": ["dist/**", "!dist/**/*.test.*"],
   "type": "module",
   "exports": {

@@ -39,4 +39,9 @@ jobs:
         run: pnpm check
       - name: Verify isolated production installation
         run: pnpm test:package
+      - name: Verify licensed package tarballs and installed command
+        run: pnpm test:tarballs
+      - name: Exercise Nginx in an isolated container
+        if: matrix.node == 24
+        run: pnpm test:nginx
 

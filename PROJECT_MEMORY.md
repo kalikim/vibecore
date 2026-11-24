@@ -1,6 +1,6 @@
 # Vibecore project memory
 
-Last inspected: 2026-11-23. Scope: this local working tree, including uncommitted
+Last inspected: 2026-11-24. Scope: this local working tree, including uncommitted
 and untracked implementation files. This is a handoff document, not proof of a
 published release or a live deployment. Recheck it against code before acting.
 
@@ -51,8 +51,8 @@ were specific to the restricted execution environment.
 Deployment tests use injected runners and mocked HTTP responses. These establish
 tested code paths, not successful live cloud deployments or security certification.
 
-Root package metadata remains version `0.0.0`, `private: true`, and
-`license: UNLICENSED`. Repository CI and Dependabot configuration were added locally
+Root package metadata is version `0.1.0-alpha.1`, `private: true`, and
+`license: MIT` following the user's explicit license choice. Repository CI and Dependabot configuration were added locally
 on 2026-11-23 under `.github/`; no GitHub run or branch-protection setup is verified.
 Workflow generation for users is distinct from CI configured for Vibecore itself.
 
@@ -63,7 +63,7 @@ Remaining release work needs explicit acceptance evidence:
    rollback, migrations, restore, and interruption recovery in scoped test targets.
 3. Audit approval binding, target identity, credential handling, concurrency,
    revision verification, and failure recording across executors.
-4. Run the new repository CI on GitHub, verify release artifacts, and decide a license.
+4. Run the new repository CI on GitHub, verify release artifacts, and finalize publication metadata/authentication. MIT is selected.
 5. Clarify blueprint scope, Expo completion tracking, and unsupported provider modes.
 6. Treat MCP/editor adapters, community plugin isolation, and a team dashboard as
    future work until their implementation and tests are found.
@@ -85,6 +85,161 @@ Remaining release work needs explicit acceptance evidence:
   GitHub may strip inline styles. Avoid em dashes in README copy.
 
 ## Updating this memory
+
+### Alpha commit and publication attempt, 2026-11-24
+
+User authorized committing and publishing the prepared alpha. npm authentication
+is verified; organization listing alone did not establish publishing permission.
+Release files passed diff whitespace checks and a targeted credential-pattern
+scan returned no matches (not a full security audit). Prior full alpha validation
+passed as recorded below. Commit/push, remote CI, and npm publication outcomes
+must be checked before reporting the release as available. No private-site files
+are included. Production readiness limitations remain unchanged.
+
+### Alpha release metadata preparation, 2026-11-24
+
+Prepared all 16 workspace packages as `0.1.0-alpha.1`, non-private, with explicit
+public access, alpha tag, npm registry, Node >=22 requirement, and repository
+subdirectory metadata. Root remains private. CLI version is now read from its
+package.json; tests assert the alpha version. Tarball verification checks root
+privacy, the 16-package publication set, publish metadata, and exact internal
+dependency versions after packing. Added CLI package README and
+`docs/PUBLISHING.md`; refreshed release-readiness and Nginx source-access wording.
+Preserved all prior user changes; no files staged or committed.
+Checks passed: frozen offline installation (lockfile unchanged), `pnpm check`
+(196 unit tests and 10 CLI tests), `pnpm test:package`, `pnpm test:tarballs`
+(16 archives and installed CLI), `pnpm test:nginx`, and diff check.
+User reports npm login and access under @vibecore; not independently reverified
+this turn. No npm publication, Git push, or deployment performed. Next: review and
+commit the release changes, verify remote CI and registry permissions, publish
+with the alpha tag, and verify every version plus a clean registry CLI install.
+Production server activation/certificate lifecycle and live-provider acceptance
+remain incomplete; alpha packaging does not establish production readiness.
+
+### MIT licensing and actual package archive verification, 2026-11-23
+
+User explicitly selected MIT. Added root `LICENSE` with attribution to Vibecore
+contributors and MIT metadata in the root and all 16 workspace package manifests.
+Build preparation copies the canonical license into each package; generated copies
+are ignored by Git. The private website repository was not changed or relicensed.
+Added `scripts/verify-tarballs.mjs` and `pnpm test:tarballs`: creates actual archives,
+checks allowed paths/license/schema/workspace dependency rewriting, installs them
+offline into a temporary consumer, and runs all 10 CLI tests plus the installed
+`vibe` executable. Internal dependencies use local tarball overrides and external
+versions match the source lockfile. This verifies archive installation, not npm
+registry availability. Temporary artifacts are removed after checks. Initial
+offline resolution failures were fixed with those explicit overrides.
+CI now includes tarball checks; remote execution remains unverified.
+Checks passed: `pnpm check` (196 unit tests, 10 CLI tests), `pnpm test:package`,
+`pnpm test:tarballs` (16 packages, 10 CLI tests), `pnpm test:nginx`, and diff check.
+Read-only `npm whoami` returned ENEEDAUTH; no npm session is available. Never request
+tokens in chat. Packages remain private at 0.0.0; scope ownership, release version,
+publication policy, and live acceptance gates remain unresolved. No commit, push,
+publication, or deployment. Next: server activation/recovery and reference-app
+acceptance; configure authenticated publishing and release metadata separately.
+
+### Real Nginx integration gate, 2026-11-23
+
+Added `scripts/verify-nginx.mjs` and `pnpm test:nginx`. The exact generated candidate
+now passes real Nginx syntax and runtime checks in a disposable, digest-pinned
+container with a synthetic loopback upstream and one-day test certificate. Tests
+verify certificate trust/hostname, fixed-host redirects, forwarding-header
+replacement, dot/dependency-path denial, body-size limits, invalid-config rejection,
+continued service after a failed reload, observable valid reload, and restoration.
+The test runs as the invoking UID/GID, drops capabilities, mounts fixtures read-only,
+and publishes random loopback-only ports. It deletes only its own container and
+temporary fixtures; early permission failures were fixed and fixtures cleaned up.
+The image is a test fixture, not a production recommendation. No live VM contacted.
+CI's Node 24 job now includes this gate; no remote CI result is verified.
+Checks passed: `pnpm test:nginx`, `pnpm check` (196 unit tests and 10 CLI tests),
+`pnpm test:package` (10 isolated-install CLI tests), and `git diff --check`.
+Updated README, `docs/NGINX.md`, and release-readiness instructions. This supersedes
+the earlier absence of real Nginx validation, but does not implement privileged
+server activation, certificate renewal, or automatic deployment rollback. Next:
+approval-bound server activation and recovery, live reference-app acceptance, and
+release metadata/publication. License choice requested from user and still pending.
+No commit, push, publication, or production deployment performed.
+
+### Nginx candidate generation, 2026-11-23
+
+Added read-only `vibe deploy nginx --domain <hostname> --port <port> [--json]`
+in the CLI and `packages/deployment/src/nginx.ts`. Validates DNS/port inputs,
+generates a deterministic digest and HTTPS reverse-proxy candidate for an existing
+certificate, and provides limitations and a manual activation checklist. Uses a
+fixed redirect host, loopback upstream, replaced forwarding headers, TLS 1.2/1.3,
+body/time limits, and dot/dependency-path blocking. No writes or server calls.
+Documentation: `docs/NGINX.md` and README. Checks: `pnpm check` passed TypeScript,
+196 unit tests across 39 files and 10 CLI smoke tests; `pnpm test:package` passed
+all 10 smoke tests in an isolated production install. `git diff --check` passed.
+Nginx is not installed locally, so generated configuration was not validated with
+the actual Nginx binary or a live host. Certbot lineage paths are assumptions.
+Certificate lifecycle, server inspection, privileged activation, locking, rollback,
+and health verification are not implemented. Existing private-site deployment
+script remains unsafe to reuse unchanged. No commit, push, npm publication, or
+live deployment. Next: isolated Nginx integration tests and approval-bound server
+activation with backups/rollback; finish release gates before npm publication.
+
+### Website production publication, 2026-11-23
+
+Built the private `vibecore-site` frontend and published its static export to
+the existing Azure VM's `/var/www/vibecore`, including guided onboarding, terminal
+animation, expanded feature copy, and GTM markup. Preserved Nginx/Certbot settings;
+did not run the old deployment script because it overwrites HTTPS configuration.
+Backup: `/home/vibecore/site-backup-rc6M3m` on the VM. Old static assets retained.
+Public HTTPS HTML and the VM index matched the local build SHA-256; HTTP redirects
+to HTTPS and Nginx validation passed. Initial Node fetch timed out; curl succeeded.
+No npm publication or Git push. Analytics collection and browser interactions
+remain unverified. Update the legacy deployment script before reusing it.
+
+### Private-site guided onboarding and terminal demo, 2026-11-23
+
+Added `GettingStarted.tsx`, `TerminalDemo.tsx`, and scoped `onboarding.css` to
+`../vibecore-site/app`; updated landing navigation and hero CTA. The prompt uses
+source checkout/build, checks available CLI commands, preserves user changes,
+and requires approval before local startup or mutations. Source instructions run
+the built entry point from the user's app directory via a session-local function.
+The site distinguishes source evaluation from production readiness and removes
+the unimplemented MCP configuration example. GIF-style animation uses CSS rather
+than an image, pauses offscreen/in hidden tabs, includes a pause control, and has
+a static reduced-motion/no-JavaScript fallback. Copy failure selects the prompt
+for manual copying. Existing analytics and other site edits are preserved.
+Verification: core `pnpm check` and isolated-install checks passed; frontend
+typecheck, production build, diff check, and exported-content checks passed.
+Browser interaction/visual QA was not performed. No commit, push, or deployment.
+Next: browser-check copying and animation on desktop/mobile, then deploy only the
+intended site changes while preserving live HTTPS configuration.
+
+### Private website analytics, 2026-11-23
+
+Added a production-only Google Tag Manager bootstrap and noscript fallback in
+`../vibecore-site/app/layout.tsx`, preserving existing frontend edits. No tracking
+was added to the public CLI. Frontend typecheck/build and diff checks passed;
+export inspection and a mocked-DOM script check verified one async loader and
+preservation of an existing dataLayer. No live tracking request was sent. Not
+deployed, and GTM container publication, analytics destinations, and consent
+configuration were not inspected. Next: publish the intended private-site changes
+without overwriting Certbot configuration, then verify with Tag Assistant.
+
+### Resource-conscious Plan Mode, 2026-11-23
+
+`vibe plan` now generates a deterministic advisory report using local repository
+discovery, an optional validated manifest, workflow presence, and dev/staging/
+production selection. `--budget-conscious` adds resource-saving guidance;
+`--json` provides reusable agent context. No network/AI calls, processes, installs,
+provisioning, or migrations are run by the command. Default operation writes
+nothing; `--save` explicitly stores a private digest-named report in ignored
+`.vibecore/plans`. `--check <path>` verifies integrity and current inspected inputs
+with the same options, failing on stale/tampered reports. Storage rejects symlinks
+and conflicting files. Raw config/secret values and parser excerpts are excluded.
+Sources: `packages/planner/src/resource-plan.ts`, CLI plan handler, and
+`docs/PLAN_MODE.md`. Validation passed TypeScript, 176 tests across 38 files, nine
+CLI tests, isolated-install checks, and `git diff --check`.
+Limits: advisory reports are not executable approval plans; no unified apply yet.
+Prices/quotas and existing cloud resources are not verified; cost stays unknown.
+Freshness covers discovery inputs, parsed manifest, workflow presence, and options,
+not all source files or remote state. Token/cost savings are not measured. Next:
+compose operation-specific plans and explicit-consent resource inspection while
+preserving existing approval gates. No commit, push, publication, or deployment.
 
 ### Deployment command-attempt journal, 2026-11-23
 

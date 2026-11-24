@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { stringify } from "yaml";
 import type { Action, Plan, RepositoryScan, VibecoreManifest } from "@vibecore/contracts";
+export { createResourcePlan, saveResourcePlan, verifyResourcePlan, type ResourcePlan } from "./resource-plan.js";
 
 export interface ManifestWriteInput {
   path: string;
