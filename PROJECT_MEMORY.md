@@ -88,6 +88,11 @@ Remaining release work needs explicit acceptance evidence:
 
 ### Alpha commit and publication attempt, 2026-11-24
 
+Follow-up CI 45386415333 exposed missing registry metadata in fresh runner caches
+despite locked dependency tarballs being present. Tarball consumer now uses
+prefer-offline with exact lockfile version overrides, permitting registry metadata
+fetches. Install scripts remain disabled and internal packages remain local archives.
+
 Release commit `120fd84` was pushed to main. GitHub run 45386146699 passed core
 and portable-install tests on Node 22/24 but failed tarball tests: Corepack chose
 pnpm 12 in the unpinned temporary consumer, ignoring pnpm 10 override settings.

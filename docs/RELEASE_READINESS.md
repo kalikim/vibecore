@@ -36,7 +36,8 @@ no production host is contacted. See `docs/NGINX.md` for scope and cleanup limit
 file allowlists, MIT license text, schema inclusion, and rewritten dependency
 references. It installs them into a temporary consumer using local tarball overrides
 for unpublished internal packages, then runs CLI smoke tests and the installed
-`vibe` executable. It uses the local pnpm cache offline and disables install scripts.
+`vibe` executable. It prefers the local pnpm cache and disables install scripts;
+fresh runners may fetch registry metadata and locked external dependency versions.
 It does not prove npm registry availability or publish anything. Linux `tar` is
 required. Temporary archives and the consumer are removed after verification.
 
